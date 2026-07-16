@@ -135,6 +135,15 @@
   <script>
     var __ = function(key) { return key; }; // fallback before Homey ready
 
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function renderDevices(namesStr) {
       var card = document.getElementById('device-card');
       var names = (namesStr || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
@@ -147,7 +156,7 @@
         return '<div class="device-row">' +
           '<div class="device-icon">' + powerIcon + '</div>' +
           '<div class="device-info">' +
-            '<div class="device-name">' + name + '</div>' +
+            '<div class="device-name">' + escapeHtml(name) + '</div>' +
             '<div class="device-index">Switch ' + (i + 1) + '</div>' +
           '</div></div>';
       }).join('');

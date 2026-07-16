@@ -94,6 +94,27 @@
       "value": false
     },
     {
+      "id": "auto_heal",
+      "type": "checkbox",
+      "label": {
+        "en": "Auto-Heal Desynced Devices",
+        "nl": "Automatisch herstel van gedesynchroniseerde apparaten",
+        "de": "Automatische Reparatur nicht synchronisierter Geräte",
+        "fr": "Correction automatique des appareils désynchronisés",
+        "es": "Corrección automática de dispositivos desincronizados",
+        "it": "Correzione automatica dei dispositivi desincronizzati"
+      },
+      "hint": {
+        "en": "Automatically retry setting desynced devices to the expected state. Uses a 20s cooldown per device.",
+        "nl": "Herstelt automatisch apparaten die niet gesynchroniseerd zijn. Gebruikt een 20s cooldown per apparaat.",
+        "de": "Setzt nicht synchronisierte Geräte automatisch zurück. Verwendet eine 20s-Abkühlzeit pro Gerät.",
+        "fr": "Réessaie automatiquement de mettre les appareils désynchronisés à l'état attendu. Délai de 20s par appareil.",
+        "es": "Reintenta automáticamente configurar los dispositivos desincronizados al estado esperado. Usa un enfriamiento de 20s por dispositivo.",
+        "it": "Ritenta automaticamente di impostare i dispositivi desincronizzati allo stato atteso. Usa un cooldown di 20s per dispositivo."
+      },
+      "value": false
+    },
+    {
       "id": "notify_on_desync",
       "type": "checkbox",
       "label": {

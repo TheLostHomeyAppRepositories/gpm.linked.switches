@@ -18,13 +18,16 @@
     "btn_create": "Crea gruppo",
     "err_name": "Inserisci un nome per il gruppo.",
     "err_create": "Errore durante la creazione del gruppo.",
-    "err_load": "Errore durante il caricamento dei dispositivi."
+    "err_load": "Errore durante il caricamento dei dispositivi.",
+    "err_device_conflict": "Uno o più dispositivi sono già utilizzati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, o eliminalo prima."
   },
   "repair": {
     "title": "Modifica gruppo di interruttori",
     "btn_save": "Salva modifiche",
     "err_save": "Errore durante il salvataggio del gruppo.",
-    "err_load": "Errore durante il caricamento della configurazione."
+    "err_load": "Errore durante il caricamento della configurazione.",
+    "err_device_conflict": "Uno o più dispositivi sono già utilizzati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, o eliminalo prima.",
+    "err_min2": "Seleziona almeno 2 dispositivi."
   },
   "device_settings": {
     "section_devices": "Interruttori collegati",
@@ -57,6 +60,11 @@
     "expected": "Atteso",
     "actual": "Effettivo",
     "filter_all": "Tutti",
-    "filter_errors": "Errori"
+    "filter_errors": "Errori",
+    "log_mode_label": "Modalità log:",
+    "show_status_label": "Mostra stato dei sottodispositivi su tutte le schede di gruppo:",
+    "log_mode_errors": "Solo errori",
+    "log_mode_full": "Log completo",
+    "log_title_full": "Log di sincronizzazione"
   }
 }

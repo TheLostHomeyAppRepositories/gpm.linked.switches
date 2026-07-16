@@ -1,5 +1,8 @@
 /env.json
 /node_modules/
 /.homeybuild/
+/other/
 .DS_Store
 *.zip
+homey_run*.log
+linkswitch-*.log

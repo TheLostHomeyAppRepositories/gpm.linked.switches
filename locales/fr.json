@@ -18,13 +18,16 @@
     "btn_create": "Créer le groupe",
     "err_name": "Veuillez entrer un nom de groupe.",
     "err_create": "Erreur lors de la création du groupe.",
-    "err_load": "Erreur lors du chargement des appareils."
+    "err_load": "Erreur lors du chargement des appareils.",
+    "err_device_conflict": "Un ou plusieurs appareils sont déjà utilisés par : \"{names}\". Utilisez Réparer sur ce groupe pour le modifier, ou supprimez-le d'abord."
   },
   "repair": {
     "title": "Modifier le groupe d'interrupteurs",
     "btn_save": "Enregistrer les modifications",
     "err_save": "Erreur lors de l'enregistrement du groupe.",
-    "err_load": "Erreur lors du chargement de la configuration."
+    "err_load": "Erreur lors du chargement de la configuration.",
+    "err_device_conflict": "Un ou plusieurs appareils sont déjà utilisés par : \"{names}\". Utilisez Réparer sur ce groupe pour le modifier, ou supprimez-le d'abord.",
+    "err_min2": "Veuillez sélectionner au moins 2 appareils."
   },
   "device_settings": {
     "section_devices": "Interrupteurs liés",
@@ -57,6 +60,11 @@
     "expected": "Attendu",
     "actual": "Réel",
     "filter_all": "Tout",
-    "filter_errors": "Erreurs"
+    "filter_errors": "Erreurs",
+    "log_mode_label": "Mode journal :",
+    "show_status_label": "Afficher l'état des sous-appareils sur toutes les cartes de groupe :",
+    "log_mode_errors": "Erreurs seulement",
+    "log_mode_full": "Journal complet",
+    "log_title_full": "Journal de synchronisation"
   }
 }

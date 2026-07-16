@@ -12,6 +12,9 @@ const HEALTH_INTERVAL_MS = 30000;
 // Discard expected-state entries older than this (stale after user changes things)
 const EXPECTED_STATE_TTL_MS = 5 * 60 * 1000;
 
+// Discard pending-offline entries older than this (device unlikely to return)
+const PENDING_OFFLINE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 class SwitchSyncDevice extends Device {
 
   async onInit() {
@@ -32,6 +35,17 @@ class SwitchSyncDevice extends Device {
 
     // Devices already notified as desynced — avoid notification spam
     this._notifiedDesyncs = new Set();
+
+    // Auto-heal cooldowns: deviceId → timestamp of last heal attempt
+    this._healCooldowns = new Map();
+
+    // Active health-check desyncs: deviceId → { expected, actual, startedAt, lastSeenAt, repeatCount }
+    // Dedup the health-check log so a stuck device logs once (opened) and once (resolved),
+    // not one identical entry every cycle.
+    this._activeDesyncs = new Map();
+
+    // Flow trigger fired when a device fails to reach the expected state
+    this._desyncTriggerCard = this.homey.flow.getDeviceTriggerCard('group_desynced');
 
     // Boot sync guard
     this._isBootSync = false;
@@ -79,6 +93,7 @@ class SwitchSyncDevice extends Device {
     this._pendingOffline.clear();
     this._expectedStates.clear();
     this._notifiedDesyncs.clear();
+    this._activeDesyncs.clear();
     this._lastPropagatedValue = null;
     this._pendingReportContext = null;
 
@@ -98,6 +113,7 @@ class SwitchSyncDevice extends Device {
         this._deviceNames.set(deviceId, name);
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
+          this._updateSubCapStatus(deviceId);
           this._onLinkedDeviceChanged(deviceId, name, value)
             .catch(err => this.error(`[${this.getName()}] Error handling change from "${name}": ${err.message}`));
         });
@@ -136,7 +152,7 @@ class SwitchSyncDevice extends Device {
       const virtualCurrent = this.getCapabilityValue('onoff');
       if (virtualCurrent !== isAnyOn) {
         if (this.getSetting('debug')) this.log(`[${this.getName()}] Boot sync: → ${isAnyOn}`);
-        await this.setCapabilityValue('onoff', isAnyOn).catch(this.error);
+        await this.setCapabilityValue('onoff', isAnyOn).catch(err => this.error(`[${this.getName()}] Boot sync setCapabilityValue error: ${err.message}`));
       }
     } catch (err) {
       this.error(`[${this.getName()}] Boot sync error:`, err);
@@ -169,15 +185,108 @@ class SwitchSyncDevice extends Device {
 
     for (let i = 0; i < deviceIds.length; i++) {
       const capId = `linked_switch.${i + 1}`;
-      const name  = this._deviceNames.get(deviceIds[i]) || deviceIds[i];
       try {
         if (!this.hasCapability(capId)) await this.addCapability(capId);
-        await this.setCapabilityOptions(capId, { title: { en: 'Switch' } });
-        await this.setCapabilityValue(capId, name);
       } catch (err) {
         this.error(`[${this.getName()}] Could not set up ${capId}: ${err.message}`);
       }
+      await this._renderSubCapability(i, deviceIds[i]);
     }
+  }
+
+  _shouldShowDeviceStatus() {
+    return this.homey.settings.get('show_device_status') !== false;
+  }
+
+  // Render one linked_switch.N — either live ON/OFF status (default), with a ⚠
+  // marker when diverging from the group state, or just the device name.
+  // Controlled by the global app setting `show_device_status`.
+  async _renderSubCapability(index, deviceId) {
+    const capId = `linked_switch.${index + 1}`;
+    if (!this.hasCapability(capId)) return;
+    const name = this._deviceNames.get(deviceId) || deviceId;
+    try {
+      if (this._shouldShowDeviceStatus()) {
+        await this.setCapabilityOptions(capId, { title: { en: name } });
+        await this.setCapabilityValue(capId, this._subCapStatus(deviceId));
+      } else {
+        // The sensor component always renders a title; keep it visually empty
+        // when only the linked device name should be shown.
+        await this.setCapabilityOptions(capId, { title: { en: '\u00A0' } });
+        await this.setCapabilityValue(capId, name);
+      }
+    } catch (err) {
+      this.error(`[${this.getName()}] Could not render ${capId}: ${err.message}`);
+    }
+  }
+
+  async _renderAllSubCapabilities() {
+    const deviceIds = this.getStoreValue('deviceIds') || [];
+    for (let i = 0; i < deviceIds.length; i++) {
+      await this._renderSubCapability(i, deviceIds[i]);
+    }
+  }
+
+  _subCapStatus(deviceId) {
+    const entry = this._listeners.get(deviceId);
+    const v = entry ? entry.onoffInstance.value : null;
+    if (v === null || v === undefined) return '—';
+    const diverges = v !== this.getCapabilityValue('onoff');
+    return (v ? 'On' : 'Off') + (diverges ? ' ⚠' : '');
+  }
+
+  // Lightweight value-only refresh, used on every device state change
+  _updateSubCapStatus(deviceId) {
+    if (!this._shouldShowDeviceStatus()) return;
+    const deviceIds = this.getStoreValue('deviceIds') || [];
+    const i = deviceIds.indexOf(deviceId);
+    if (i === -1) return;
+    const capId = `linked_switch.${i + 1}`;
+    if (!this.hasCapability(capId)) return;
+    this.setCapabilityValue(capId, this._subCapStatus(deviceId)).catch(() => {});
+  }
+
+  // ─── Auto-heal: retry desynced devices directly (no _propagate) ─────────
+
+  async _autoHeal(desynced) {
+    if (!this.getSetting('auto_heal')) return;
+
+    const now        = Date.now();
+    const suppressMs = this.getSetting('suppress_ms') || 2000;
+    const isDebug    = this.getSetting('debug');
+    const COOLDOWN   = 20000;
+
+    for (const { deviceId, name, expected } of desynced) {
+      // Skip if a propagation is still in flight for this device
+      const exp = this._expectedStates.get(deviceId);
+      if (exp && !exp.verified) {
+        if (isDebug) this.log(`[${this.getName()}] Auto-heal skipped "${name}" — propagation in flight`);
+        continue;
+      }
+
+      // Cooldown: don't retry the same device within 20s
+      const lastHeal = this._healCooldowns.get(deviceId) || 0;
+      if (now - lastHeal < COOLDOWN) {
+        if (isDebug) this.log(`[${this.getName()}] Auto-heal skipped "${name}" — cooldown`);
+        continue;
+      }
+
+      const entry = this._listeners.get(deviceId);
+      if (!entry || !entry.device.available) continue;
+
+      this._healCooldowns.set(deviceId, now);
+      this.log(`[${this.getName()}] Auto-heal: "${name}" → ${expected ? 'ON' : 'OFF'}`);
+      await this._setDeviceValue(entry.device, deviceId, expected, suppressMs, isDebug);
+    }
+  }
+
+  // ─── Mark a previously-desynced device as back in sync ───────────────────
+
+  _markSynced(deviceId) {
+    if (!this._notifiedDesyncs.has(deviceId)) return;
+    this._notifiedDesyncs.delete(deviceId);
+    const name = this._deviceNames.get(deviceId) || deviceId;
+    this.log(`[${this.getName()}] "${name}" back in sync`);
   }
 
   // ─── Incoming: linked device changed (physical or remote) ─────────────────
@@ -186,18 +295,19 @@ class SwitchSyncDevice extends Device {
     const isDebug = this.getSetting('debug');
 
     // Device was offline during propagation and just reconnected
-    const pending = this._pendingOffline.get(sourceId);
-    if (pending !== undefined) {
-      if (pending === value) {
+    const pendingEntry = this._pendingOffline.get(sourceId);
+    if (pendingEntry !== undefined) {
+      const { value: pendingValue } = pendingEntry;
+      if (pendingValue === value) {
         if (isDebug) this.log(`[${this.getName()}] "${sourceName}" back online already in sync (${value})`);
         this._pendingOffline.delete(sourceId);
       } else {
-        if (isDebug) this.log(`[${this.getName()}] "${sourceName}" back online, syncing to ${pending}`);
+        if (isDebug) this.log(`[${this.getName()}] "${sourceName}" back online, syncing to ${pendingValue}`);
         this._pendingOffline.delete(sourceId);
         const entry = this._listeners.get(sourceId);
         if (entry) {
           const suppressMs = this.getSetting('suppress_ms') || 2000;
-          await this._setDeviceValue(entry.device, sourceId, pending, suppressMs, isDebug);
+          await this._setDeviceValue(entry.device, sourceId, pendingValue, suppressMs, isDebug);
         }
         return;
       }
@@ -213,7 +323,7 @@ class SwitchSyncDevice extends Device {
       if (exp && exp.value === value) {
         exp.verified = true;
         exp.syncedAt = Date.now() - exp.timestamp;
-        this._notifiedDesyncs.delete(sourceId);
+        this._markSynced(sourceId);
       }
       return;
     }
@@ -225,11 +335,11 @@ class SwitchSyncDevice extends Device {
     if (exp && exp.value === value) {
       exp.verified = true;
       exp.syncedAt = Date.now() - exp.timestamp;
-      this._notifiedDesyncs.delete(sourceId);
+      this._markSynced(sourceId);
     }
 
     const current = this.getCapabilityValue('onoff');
-    if (current !== value) await this.setCapabilityValue('onoff', value).catch(this.error);
+    if (current !== value) await this.setCapabilityValue('onoff', value).catch(err => this.error(`[${this.getName()}] setCapabilityValue error: ${err.message}`));
 
     await this._propagate(value, sourceId);
   }
@@ -280,7 +390,7 @@ class SwitchSyncDevice extends Device {
 
       if (!device.available) {
         if (isDebug) this.log(`[${this.getName()}] "${device.name}" offline — will sync when it comes back`);
-        this._pendingOffline.set(deviceId, value);
+        this._pendingOffline.set(deviceId, { value, timestamp: Date.now() });
         this._expectedStates.set(deviceId, { value, timestamp: Date.now(), verified: false, offline: true });
         return;
       }
@@ -288,10 +398,17 @@ class SwitchSyncDevice extends Device {
       // Register expectation — echo callback will mark verified + set syncedAt
       this._expectedStates.set(deviceId, { value, timestamp: Date.now(), verified: false });
 
-      await this._setDeviceValue(device, deviceId, value, suppressMs, isDebug);
+      const result = await this._setDeviceValue(device, deviceId, value, suppressMs, isDebug);
+      if (!result.ok) {
+        const exp = this._expectedStates.get(deviceId);
+        if (exp) exp.errorMessage = result.errorMessage;
+      }
     });
 
     await Promise.allSettled(promises);
+
+    // Group state changed — refresh the ⚠ markers of devices that didn't echo
+    for (const deviceId of deviceIds) this._updateSubCapStatus(deviceId);
 
     // Schedule a single post-propagation verify, reset if another propagation comes first
     if (this._verifyTimer) this.homey.clearTimeout(this._verifyTimer);
@@ -314,8 +431,10 @@ class SwitchSyncDevice extends Device {
 
       if (isDebug) this.log(`[${this.getName()}] → ${value ? 'ON' : 'OFF'} to "${device.name}"`);
       await device.setCapabilityValue({ capabilityId: 'onoff', value });
+      return { ok: true };
     } catch (err) {
       this.error(`[${this.getName()}] Failed to set "${device.name}": ${err.message}`);
+      return { ok: false, errorMessage: err.message };
     }
   }
 
@@ -355,10 +474,12 @@ class SwitchSyncDevice extends Device {
         // Confirmed by reading state directly (no echo received)
         exp.verified = true;
         exp.syncedAt = now - exp.timestamp;
-        this._notifiedDesyncs.delete(deviceId);
+        this._markSynced(deviceId);
         report.devices.push({ name: device.name, synced: true, syncMs: exp.syncedAt });
       } else {
-        report.devices.push({ name: device.name, synced: false, expected: exp.value, actual: onoffInstance.value });
+        const entry = { name: device.name, synced: false, expected: exp.value, actual: onoffInstance.value };
+        if (exp.errorMessage) entry.errorMessage = exp.errorMessage;
+        report.devices.push(entry);
         desynced.push({ deviceId, name: device.name, expected: exp.value, actual: onoffInstance.value });
         report.hasError = true;
       }
@@ -371,47 +492,111 @@ class SwitchSyncDevice extends Device {
     if (desynced.length > 0) {
       this.error(`[${this.getName()}] Post-propagation desync: ${desynced.map(d => d.name).join(', ')}`);
       await this._notifyDesynced(desynced);
+      await this._autoHeal(desynced);
+    }
+
+    // Remove verified entries so the health check can detect any future drift freely.
+    // Unverified entries (still desynced) are also removed — health check will catch them next cycle.
+    // Offline entries stay so _pendingOffline can resolve them later.
+    for (const [deviceId, exp] of this._expectedStates) {
+      if (!exp.offline) this._expectedStates.delete(deviceId);
     }
   }
 
   // ─── Periodic health check — detect accumulated drift ────────────────────
 
   async _verifyGroupHealth() {
+    // Expire stale pending-offline entries (device removed or unreachable too long)
+    const now = Date.now();
+    for (const [deviceId, { timestamp }] of this._pendingOffline) {
+      if (now - timestamp > PENDING_OFFLINE_TTL_MS) {
+        this.log(`[${this.getName()}] Pending offline expired for "${this._deviceNames.get(deviceId) || deviceId}"`);
+        this._pendingOffline.delete(deviceId);
+        this._expectedStates.delete(deviceId);
+      }
+    }
+
     const virtualValue = this.getCapabilityValue('onoff');
     const desynced = [];
+    const desyncedIds = new Set();
 
     for (const [deviceId, { device, onoffInstance }] of this._listeners) {
       if (!device.available) continue;
-      if (this._expectedStates.has(deviceId)) continue;
-      if (onoffInstance.value !== virtualValue) {
-        desynced.push({ deviceId, name: device.name, expected: virtualValue, actual: onoffInstance.value });
+      // Skip if device hasn't reported state yet (null/undefined → not a desync)
+      const deviceValue = onoffInstance.value;
+      if (deviceValue === null || deviceValue === undefined) continue;
+      // Skip only if a propagation is still in flight (not yet verified)
+      const exp = this._expectedStates.get(deviceId);
+      if (exp && !exp.verified) continue;
+      if (deviceValue !== virtualValue) {
+        desynced.push({ deviceId, name: device.name, expected: virtualValue, actual: deviceValue });
+        desyncedIds.add(deviceId);
       }
     }
 
     // Clear resolved desyncs from notification history
     for (const id of this._notifiedDesyncs) {
-      if (!desynced.find(d => d.deviceId === id)) {
-        this._notifiedDesyncs.delete(id);
-        this.log(`[${this.getName()}] Health: ${this._deviceNames.get(id) || id} back in sync`);
-      }
+      if (!desyncedIds.has(id)) this._markSynced(id);
+    }
+
+    // Detect recoveries: tracked desyncs that are now available and back in sync
+    const recovered = [];
+    for (const [deviceId, info] of this._activeDesyncs) {
+      if (desyncedIds.has(deviceId)) continue;
+      const entry = this._listeners.get(deviceId);
+      if (!entry || !entry.device.available) continue; // still offline → keep pending
+      recovered.push({
+        name:        this._deviceNames.get(deviceId) || deviceId,
+        durationMs:  now - info.startedAt,
+        repeatCount: info.repeatCount,
+      });
+      this._activeDesyncs.delete(deviceId);
+    }
+
+    if (recovered.length > 0) {
+      this.log(`[${this.getName()}] Health check: ${recovered.length} device(s) recovered — ${recovered.map(r => r.name).join(', ')}`);
+      this.homey.app.addSyncReport({
+        timestamp: new Date().toISOString(),
+        group:     this.getName(),
+        trigger:   'Health Check',
+        value:     virtualValue,
+        devices:   recovered.map(r => ({ name: r.name, synced: true, recovered: true, durationMs: r.durationMs, repeatCount: r.repeatCount })),
+        hasError:  false,
+        important: true, // keep in the log even in errors-only mode — it closes a prior failure
+      });
     }
 
     if (desynced.length === 0) return;
 
-    this.error(`[${this.getName()}] Health check: ${desynced.length} device(s) desynced — ${desynced.map(d => `${d.name}(${d.actual ? 'ON' : 'OFF'})`).join(', ')}`);
+    // Split current desyncs into newly-opened vs ongoing repeats — only log the new ones
+    const newDesyncs = [];
+    for (const d of desynced) {
+      const info = this._activeDesyncs.get(d.deviceId);
+      if (info) {
+        info.repeatCount++;
+        info.lastSeenAt = now;
+        info.actual     = d.actual;
+      } else {
+        this._activeDesyncs.set(d.deviceId, { expected: d.expected, actual: d.actual, startedAt: now, lastSeenAt: now, repeatCount: 0 });
+        newDesyncs.push(d);
+      }
+    }
 
-    // Log health desyncs as error-only report (no timing context)
-    const report = {
-      timestamp: new Date().toISOString(),
-      group:     this.getName(),
-      trigger:   'Health Check',
-      value:     virtualValue,
-      devices:   desynced.map(d => ({ name: d.name, synced: false, expected: d.expected, actual: d.actual })),
-      hasError:  true,
-    };
-    this.homey.app.addSyncReport(report);
+    if (newDesyncs.length > 0) {
+      this.error(`[${this.getName()}] Health check: ${newDesyncs.length} new desync(s) — ${newDesyncs.map(d => `${d.name}(${d.actual ? 'ON' : 'OFF'})`).join(', ')}`);
+      this.homey.app.addSyncReport({
+        timestamp: new Date().toISOString(),
+        group:     this.getName(),
+        trigger:   'Health Check',
+        value:     virtualValue,
+        devices:   newDesyncs.map(d => ({ name: d.name, synced: false, expected: d.expected, actual: d.actual })),
+        hasError:  true,
+      });
+    }
 
+    // Notification + auto-heal run on the full desync set — they self-dedup (notify history / 20s cooldown)
     await this._notifyDesynced(desynced);
+    await this._autoHeal(desynced);
   }
 
   // ─── Notify desync — once per device until resolved ──────────────────────
@@ -421,6 +606,15 @@ class SwitchSyncDevice extends Device {
     if (newDesyncs.length === 0) return;
 
     newDesyncs.forEach(d => this._notifiedDesyncs.add(d.deviceId));
+
+    // Fire the Flow trigger regardless of the push-notification setting — separate channels
+    for (const d of newDesyncs) {
+      this._desyncTriggerCard.trigger(this, {
+        device_name:    d.name,
+        expected_state: d.expected ? 'ON' : 'OFF',
+        actual_state:   d.actual ? 'ON' : 'OFF',
+      }).catch(err => this.error(`[${this.getName()}] group_desynced trigger error: ${err.message}`));
+    }
 
     if (!this.getSetting('notify_on_desync')) return;
 
@@ -435,6 +629,26 @@ class SwitchSyncDevice extends Device {
     } catch (err) {
       this.error(`[${this.getName()}] Could not send notification: ${err.message}`);
     }
+  }
+
+  // ─── Public API (used by Flow conditions and actions) ─────────────────────
+
+  isGroupSynced() {
+    return this._notifiedDesyncs.size === 0 && this._pendingOffline.size === 0;
+  }
+
+  isGroupPendingOffline() {
+    return this._pendingOffline.size > 0;
+  }
+
+  async forceResync() {
+    // Skip if a propagation is already in flight
+    for (const exp of this._expectedStates.values()) {
+      if (!exp.offline && !exp.verified) return;
+    }
+    const value = this.getCapabilityValue('onoff');
+    this.log(`[${this.getName()}] Flow: Force resync → ${value ? 'ON' : 'OFF'}`);
+    await this._propagate(value, null);
   }
 
   // ─── Settings changed ─────────────────────────────────────────────────────
@@ -463,6 +677,8 @@ class SwitchSyncDevice extends Device {
     this._pendingOffline.clear();
     this._expectedStates.clear();
     this._notifiedDesyncs.clear();
+    this._healCooldowns.clear();
+    this._activeDesyncs.clear();
   }
 
 }

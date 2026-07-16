@@ -18,7 +18,8 @@
       flex-direction: column;
     }
 
-    h2 { font-size: 18px; margin-bottom: 20px; color: #111; }
+    h2 { font-size: 18px; margin-bottom: 4px; color: #111; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
 
     label.field-label {
       display: block;
@@ -126,6 +127,7 @@
 <body>
 
   <h2 id="t-title"></h2>
+  <p class="subtitle" id="device-count"></p>
 
   <label class="field-label" id="t-group-name"></label>
   <input type="text" id="name" value="My Binding" />
@@ -150,13 +152,22 @@
 
   <script>
     var availableDevices = [];
+    var selectedIds = {};
 
-    // i18n helpers
     var __ = function(k) { try { return Homey.__(k) || k; } catch(e) { return k; } };
 
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function initTranslations() {
-      document.getElementById('t-title').textContent        = __('pair.title');
-      document.getElementById('t-group-name').textContent   = __('wizard.group_name');
+      document.getElementById('t-title').textContent         = __('pair.title');
+      document.getElementById('t-group-name').textContent    = __('wizard.group_name');
       document.getElementById('t-devices-label').textContent = __('wizard.devices_to_sync');
       document.getElementById('t-hint').textContent          = __('wizard.hint_min2');
       document.getElementById('t-all-zones').textContent     = __('wizard.all_zones');
@@ -164,6 +175,13 @@
       document.getElementById('btn-create').textContent      = __('pair.btn_create');
       document.getElementById('name').placeholder            = __('pair.name_placeholder');
       document.getElementById('filter-text').placeholder     = __('wizard.search_placeholder');
+      updateCount();
+    }
+
+    function updateCount() {
+      var n = Object.keys(selectedIds).length;
+      var el = document.getElementById('device-count');
+      if (el) el.textContent = n + ' ' + (n !== 1 ? __('wizard.devices') : __('wizard.device')) + ' ' + __('wizard.selected');
     }
 
     function showError(msg) {
@@ -211,35 +229,31 @@
         return;
       }
 
-      var checked = {};
-      document.querySelectorAll('#device-list input[type=checkbox]:checked').forEach(function(cb) {
-        checked[cb.value] = true;
-      });
-
       list.innerHTML = devices.map(function(d) {
-        var isChecked  = checked[d.id] ? ' checked' : '';
-        var isSelected = checked[d.id] ? ' selected' : '';
-        var zoneBadge  = d.zoneName ? '<span class="device-zone">' + d.zoneName + '</span>' : '';
-        return '<label class="device-item' + isSelected + '" id="item-' + d.id + '">' +
-          '<input type="checkbox" value="' + d.id + '"' + isChecked + ' onchange="onCheckChange(this)" />' +
-          '<span class="device-name">' + d.name + '</span>' +
+        var isChecked  = selectedIds[d.id] ? ' checked' : '';
+        var isSelected = selectedIds[d.id] ? ' selected' : '';
+        var zoneBadge  = d.zoneName ? '<span class="device-zone">' + escapeHtml(d.zoneName) + '</span>' : '';
+        return '<label class="device-item' + isSelected + '" id="item-' + escapeHtml(d.id) + '">' +
+          '<input type="checkbox" value="' + escapeHtml(d.id) + '"' + isChecked + ' onchange="onCheckChange(this)" />' +
+          '<span class="device-name">' + escapeHtml(d.name) + '</span>' +
           zoneBadge +
           '</label>';
       }).join('');
     }
 
     function onCheckChange(checkbox) {
+      if (checkbox.checked) {
+        selectedIds[checkbox.value] = true;
+      } else {
+        delete selectedIds[checkbox.value];
+      }
       var item = document.getElementById('item-' + checkbox.value);
       if (item) item.classList.toggle('selected', checkbox.checked);
+      updateCount();
     }
 
     function getSelectedIds() {
-      return availableDevices
-        .filter(function(d) {
-          var cb = document.querySelector('#device-list input[value="' + d.id + '"]');
-          return cb && cb.checked;
-        })
-        .map(function(d) { return d.id; });
+      return Object.keys(selectedIds);
     }
 
     function createBinding() {

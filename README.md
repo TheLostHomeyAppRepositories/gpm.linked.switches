@@ -28,7 +28,14 @@ Each group has its own settings, accessible by tapping the device and going to *
 | **Linked Devices** | List of devices currently in this group | — |
 | **Echo Suppress Window** | How long (ms) to ignore echoes after sending a command. Prevents feedback loops. | 2000 ms |
 | **Enable Debug Logging** | Write verbose logs to the app console (for troubleshooting) | Off |
+| **Auto-Heal Desynced Devices** | Automatically retry setting a desynced device to the expected state (20 s cooldown per device) | Off |
 | **Notify on Desync** | Send a push notification if a device fails to reach the expected state | On |
+
+### When to enable Auto-Heal
+
+Auto-Heal is **off by default** because retrying a device that keeps failing can mask a real problem (weak signal, dead device) instead of surfacing it.
+
+Turn it on when you have a device that drops commands intermittently but is otherwise healthy — for example a Zigbee/Tuya switch that occasionally times out. Auto-Heal will re-send the expected state (max once every 20 s per device) until it sticks. Leave it **off** while diagnosing a new or unreliable device, so the Desync Log shows the failures clearly.
 
 ---
 
@@ -65,6 +72,17 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 - Devices that are offline when a command is sent are queued and synced when they reconnect
 - On startup, all devices in the group are automatically aligned to the same state
 - A health check runs every 30 seconds to detect accumulated drift
+
+---
+
+## Flow cards
+
+Each group exposes the following Flow cards (found under the group device):
+
+- **Trigger — "A device failed to sync"** — fires when a device fails to reach the expected state. Tokens: device name, expected state, actual state.
+- **Condition — "Group is fully synced"** — true when every device matches the group state (no pending failures or offline devices).
+- **Condition — "Group is waiting for an offline device"** — true while a command is queued for a device that was offline.
+- **Action — "Force resync"** — re-sends the current group state to all devices.
 
 ---
 

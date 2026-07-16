@@ -18,13 +18,16 @@
     "btn_create": "Crear grupo",
     "err_name": "Por favor, introduce un nombre de grupo.",
     "err_create": "Error al crear el grupo.",
-    "err_load": "Error al cargar los dispositivos."
+    "err_load": "Error al cargar los dispositivos.",
+    "err_device_conflict": "Uno o más dispositivos ya son usados por: \"{names}\". Usa Reparar en ese grupo para editarlo, o elimínalo primero."
   },
   "repair": {
     "title": "Editar grupo de interruptores",
     "btn_save": "Guardar cambios",
     "err_save": "Error al guardar el grupo.",
-    "err_load": "Error al cargar la configuración."
+    "err_load": "Error al cargar la configuración.",
+    "err_device_conflict": "Uno o más dispositivos ya son usados por: \"{names}\". Usa Reparar en ese grupo para editarlo, o elimínalo primero.",
+    "err_min2": "Selecciona al menos 2 dispositivos."
   },
   "device_settings": {
     "section_devices": "Interruptores vinculados",
@@ -57,6 +60,11 @@
     "expected": "Esperado",
     "actual": "Real",
     "filter_all": "Todo",
-    "filter_errors": "Errores"
+    "filter_errors": "Errores",
+    "log_mode_label": "Modo de registro:",
+    "show_status_label": "Mostrar estado de los subdispositivos en todas las tarjetas de grupo:",
+    "log_mode_errors": "Solo errores",
+    "log_mode_full": "Registro completo",
+    "log_title_full": "Registro de sincronización"
   }
 }

@@ -1,0 +1,33 @@
+{
+  "title": {
+    "en": "A device failed to sync",
+    "nl": "Een apparaat kon niet synchroniseren",
+    "de": "Ein Gerät konnte nicht synchronisiert werden",
+    "fr": "Un appareil n'a pas pu se synchroniser",
+    "es": "Un dispositivo no pudo sincronizarse",
+    "it": "Un dispositivo non è riuscito a sincronizzarsi"
+  },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=switch-sync" }
+  ],
+  "tokens": [
+    {
+      "name": "device_name",
+      "type": "string",
+      "title": { "en": "Device", "nl": "Apparaat", "de": "Gerät", "fr": "Appareil", "es": "Dispositivo", "it": "Dispositivo" },
+      "example": "Kitchen Light"
+    },
+    {
+      "name": "expected_state",
+      "type": "string",
+      "title": { "en": "Expected", "nl": "Verwacht", "de": "Erwartet", "fr": "Attendu", "es": "Esperado", "it": "Atteso" },
+      "example": "ON"
+    },
+    {
+      "name": "actual_state",
+      "type": "string",
+      "title": { "en": "Actual", "nl": "Werkelijk", "de": "Tatsächlich", "fr": "Réel", "es": "Real", "it": "Reale" },
+      "example": "OFF"
+    }
+  ]
+}

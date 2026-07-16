@@ -1,0 +1,13 @@
+{
+  "title": {
+    "en": "Force resync",
+    "nl": "Forceer hersynchronisatie",
+    "de": "Neusynchronisierung erzwingen",
+    "fr": "Forcer la resynchronisation",
+    "es": "Forzar resincronización",
+    "it": "Forza risincronizzazione"
+  },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=switch-sync" }
+  ]
+}

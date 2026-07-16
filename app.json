@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "gpm.linked.switches",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -36,6 +36,127 @@
     "email": "g.machado@me.com"
   },
   "source": "https://github.com/gpmachado/gpm.linked.switches",
+  "flow": {
+    "triggers": [
+      {
+        "title": {
+          "en": "A device failed to sync",
+          "nl": "Een apparaat kon niet synchroniseren",
+          "de": "Ein Gerät konnte nicht synchronisiert werden",
+          "fr": "Un appareil n'a pas pu se synchroniser",
+          "es": "Un dispositivo no pudo sincronizarse",
+          "it": "Un dispositivo non è riuscito a sincronizzarsi"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=switch-sync"
+          }
+        ],
+        "tokens": [
+          {
+            "name": "device_name",
+            "type": "string",
+            "title": {
+              "en": "Device",
+              "nl": "Apparaat",
+              "de": "Gerät",
+              "fr": "Appareil",
+              "es": "Dispositivo",
+              "it": "Dispositivo"
+            },
+            "example": "Kitchen Light"
+          },
+          {
+            "name": "expected_state",
+            "type": "string",
+            "title": {
+              "en": "Expected",
+              "nl": "Verwacht",
+              "de": "Erwartet",
+              "fr": "Attendu",
+              "es": "Esperado",
+              "it": "Atteso"
+            },
+            "example": "ON"
+          },
+          {
+            "name": "actual_state",
+            "type": "string",
+            "title": {
+              "en": "Actual",
+              "nl": "Werkelijk",
+              "de": "Tatsächlich",
+              "fr": "Réel",
+              "es": "Real",
+              "it": "Reale"
+            },
+            "example": "OFF"
+          }
+        ],
+        "id": "group_desynced"
+      }
+    ],
+    "conditions": [
+      {
+        "title": {
+          "en": "Group !{{is|is not}} fully synced",
+          "nl": "Groep !{{is|is niet}} volledig gesynchroniseerd",
+          "de": "Gruppe !{{ist|ist nicht}} vollständig synchronisiert",
+          "fr": "Le groupe !{{est|n'est pas}} entièrement synchronisé",
+          "es": "El grupo !{{está|no está}} totalmente sincronizado",
+          "it": "Il gruppo !{{è|non è}} completamente sincronizzato"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=switch-sync"
+          }
+        ],
+        "id": "group_is_synced"
+      },
+      {
+        "title": {
+          "en": "Group !{{is|is not}} waiting for an offline device",
+          "nl": "Groep !{{wacht|wacht niet}} op een offline apparaat",
+          "de": "Gruppe !{{wartet|wartet nicht}} auf ein Offline-Gerät",
+          "fr": "Le groupe !{{attend|n'attend pas}} un appareil hors ligne",
+          "es": "El grupo !{{está esperando|no está esperando}} un dispositivo sin conexión",
+          "it": "Il gruppo !{{è in attesa di|non è in attesa di}} un dispositivo offline"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=switch-sync"
+          }
+        ],
+        "id": "group_pending_offline"
+      }
+    ],
+    "actions": [
+      {
+        "title": {
+          "en": "Force resync",
+          "nl": "Forceer hersynchronisatie",
+          "de": "Neusynchronisierung erzwingen",
+          "fr": "Forcer la resynchronisation",
+          "es": "Forzar resincronización",
+          "it": "Forza risincronizzazione"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=switch-sync"
+          }
+        ],
+        "id": "force_resync"
+      }
+    ]
+  },
   "drivers": [
     {
       "name": {
@@ -188,6 +309,27 @@
             "fr": "Activer la journalisation de débogage",
             "es": "Habilitar registro de depuración",
             "it": "Abilita registrazione debug"
+          },
+          "value": false
+        },
+        {
+          "id": "auto_heal",
+          "type": "checkbox",
+          "label": {
+            "en": "Auto-Heal Desynced Devices",
+            "nl": "Automatisch herstel van gedesynchroniseerde apparaten",
+            "de": "Automatische Reparatur nicht synchronisierter Geräte",
+            "fr": "Correction automatique des appareils désynchronisés",
+            "es": "Corrección automática de dispositivos desincronizados",
+            "it": "Correzione automatica dei dispositivi desincronizzati"
+          },
+          "hint": {
+            "en": "Automatically retry setting desynced devices to the expected state. Uses a 20s cooldown per device.",
+            "nl": "Herstelt automatisch apparaten die niet gesynchroniseerd zijn. Gebruikt een 20s cooldown per apparaat.",
+            "de": "Setzt nicht synchronisierte Geräte automatisch zurück. Verwendet eine 20s-Abkühlzeit pro Gerät.",
+            "fr": "Réessaie automatiquement de mettre les appareils désynchronisés à l'état attendu. Délai de 20s par appareil.",
+            "es": "Reintenta automáticamente configurar los dispositivos desincronizados al estado esperado. Usa un enfriamiento de 20s por dispositivo.",
+            "it": "Ritenta automaticamente di impostare i dispositivi desincronizzati allo stato atteso. Usa un cooldown di 20s per dispositivo."
           },
           "value": false
         },

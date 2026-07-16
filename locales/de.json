@@ -18,13 +18,16 @@
     "btn_create": "Gruppe erstellen",
     "err_name": "Bitte einen Gruppennamen eingeben.",
     "err_create": "Fehler beim Erstellen der Gruppe.",
-    "err_load": "Fehler beim Laden der Geräte."
+    "err_load": "Fehler beim Laden der Geräte.",
+    "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparatur für diese Gruppe oder lösche sie zuerst."
   },
   "repair": {
     "title": "Schaltergruppe bearbeiten",
     "btn_save": "Änderungen speichern",
     "err_save": "Fehler beim Speichern der Gruppe.",
-    "err_load": "Fehler beim Laden der Konfiguration."
+    "err_load": "Fehler beim Laden der Konfiguration.",
+    "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparatur für diese Gruppe oder lösche sie zuerst.",
+    "err_min2": "Bitte mindestens 2 Geräte auswählen."
   },
   "device_settings": {
     "section_devices": "Verknüpfte Schalter",
@@ -57,6 +60,11 @@
     "expected": "Erwartet",
     "actual": "Tatsächlich",
     "filter_all": "Alle",
-    "filter_errors": "Fehler"
+    "filter_errors": "Fehler",
+    "log_mode_label": "Log-Modus:",
+    "show_status_label": "Untergerätestatus auf allen Gruppenkarten anzeigen:",
+    "log_mode_errors": "Nur Fehler",
+    "log_mode_full": "Vollständiges Sync-Log",
+    "log_title_full": "Sync-Log"
   }
 }

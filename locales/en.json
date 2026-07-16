@@ -18,13 +18,16 @@
     "btn_create": "Create Binding Group",
     "err_name": "Please enter a group name.",
     "err_create": "Error creating binding.",
-    "err_load": "Error loading devices."
+    "err_load": "Error loading devices.",
+    "err_device_conflict": "One or more devices are already used by: \"{names}\". Use Repair on that group to edit it, or delete it first."
   },
   "repair": {
     "title": "Edit Binding Group",
     "btn_save": "Save Changes",
     "err_save": "Error saving binding.",
-    "err_load": "Error loading configuration."
+    "err_load": "Error loading configuration.",
+    "err_device_conflict": "One or more devices are already used by: \"{names}\". Use Repair on that group to edit it, or delete it first.",
+    "err_min2": "Select at least 2 devices."
   },
   "device_settings": {
     "section_devices": "Linked Switches",
@@ -57,6 +60,11 @@
     "expected": "Expected",
     "actual": "Actual",
     "filter_all": "All",
-    "filter_errors": "Errors"
+    "filter_errors": "Errors",
+    "log_mode_label": "Log mode:",
+    "show_status_label": "Show subdevice status on all group cards:",
+    "log_mode_errors": "Errors only",
+    "log_mode_full": "Full sync log",
+    "log_title_full": "Sync Log"
   }
 }

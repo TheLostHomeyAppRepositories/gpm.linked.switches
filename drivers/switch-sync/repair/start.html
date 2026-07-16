@@ -150,6 +150,15 @@
 
     var __ = function(k) { try { return Homey.__(k) || k; } catch(e) { return k; } };
 
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function initTranslations() {
       document.getElementById('t-title').textContent         = __('repair.title');
       document.getElementById('t-devices-label').textContent = __('wizard.devices_to_sync');
@@ -205,10 +214,10 @@
       list.innerHTML = devices.map(function(d) {
         var checked  = selectedIds[d.id] ? ' checked' : '';
         var selClass = selectedIds[d.id] ? ' selected' : '';
-        var zoneBadge = d.zoneName ? '<span class="device-zone">' + d.zoneName + '</span>' : '';
-        return '<label class="device-item' + selClass + '" id="item-' + d.id + '">' +
-          '<input type="checkbox" value="' + d.id + '"' + checked + ' onchange="onCheckChange(this)" />' +
-          '<span class="device-name">' + d.name + '</span>' + zoneBadge +
+        var zoneBadge = d.zoneName ? '<span class="device-zone">' + escapeHtml(d.zoneName) + '</span>' : '';
+        return '<label class="device-item' + selClass + '" id="item-' + escapeHtml(d.id) + '">' +
+          '<input type="checkbox" value="' + escapeHtml(d.id) + '"' + checked + ' onchange="onCheckChange(this)" />' +
+          '<span class="device-name">' + escapeHtml(d.name) + '</span>' + zoneBadge +
           '</label>';
       }).join('');
       updateCount();

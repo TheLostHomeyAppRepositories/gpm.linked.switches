@@ -18,13 +18,16 @@
     "btn_create": "Groep aanmaken",
     "err_name": "Voer een groepsnaam in.",
     "err_create": "Fout bij aanmaken van de groep.",
-    "err_load": "Fout bij laden van apparaten."
+    "err_load": "Fout bij laden van apparaten.",
+    "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Reparatie op die groep om deze te bewerken, of verwijder deze eerst."
   },
   "repair": {
     "title": "Schakelaargroep bewerken",
     "btn_save": "Wijzigingen opslaan",
     "err_save": "Fout bij opslaan van de groep.",
-    "err_load": "Fout bij laden van de configuratie."
+    "err_load": "Fout bij laden van de configuratie.",
+    "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Reparatie op die groep om deze te bewerken, of verwijder deze eerst.",
+    "err_min2": "Selecteer minimaal 2 apparaten."
   },
   "device_settings": {
     "section_devices": "Gekoppelde schakelaars",
@@ -57,6 +60,11 @@
     "expected": "Verwacht",
     "actual": "Werkelijk",
     "filter_all": "Alles",
-    "filter_errors": "Fouten"
+    "filter_errors": "Fouten",
+    "log_mode_label": "Logmodus:",
+    "show_status_label": "Toon subapparaatstatus op alle groepskaarten:",
+    "log_mode_errors": "Alleen fouten",
+    "log_mode_full": "Volledig synclogboek",
+    "log_title_full": "Synclogboek"
   }
 }

@@ -1,0 +1,13 @@
+{
+  "title": {
+    "en": "Group !{{is|is not}} fully synced",
+    "nl": "Groep !{{is|is niet}} volledig gesynchroniseerd",
+    "de": "Gruppe !{{ist|ist nicht}} vollständig synchronisiert",
+    "fr": "Le groupe !{{est|n'est pas}} entièrement synchronisé",
+    "es": "El grupo !{{está|no está}} totalmente sincronizado",
+    "it": "Il gruppo !{{è|non è}} completamente sincronizzato"
+  },
+  "args": [
+    { "type": "device", "name": "device", "filter": "driver_id=switch-sync" }
+  ]
+}

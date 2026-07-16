@@ -19,5 +19,14 @@
   },
   "1.0.7": {
     "en": "Sync log now shows who triggered each action, timing per device, and filter All / Errors"
+  },
+  "1.0.8": {
+    "en": "Auto-Heal: when a device fails to sync, the app automatically retries — enable in group settings (20s cooldown per device)"
+  },
+  "1.0.9": {
+    "en": "Added Flow cards for sync failures, group status and Force Resync. Group cards now show each linked switch's live ON/OFF status by default, configurable in app settings; when disabled, only device names are shown. Sync diagnostics are clearer, and repeated failures are logged once with their recovery."
+  },
+  "1.0.10": {
+    "en": "Fixed the titles of the group sync status and Force Resync Flow cards."
   }
 }
