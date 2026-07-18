@@ -62,9 +62,35 @@
     "filter_all": "Todo",
     "filter_errors": "Errores",
     "log_mode_label": "Modo de registro:",
-    "show_status_label": "Mostrar estado de los subdispositivos en todas las tarjetas de grupo:",
+    "show_status_label": "Mostrar el estado de subdispositivos en las tarjetas Linked Switch:",
+    "show_master_status_label": "Mostrar el estado de subdispositivos en las tarjetas Switch Master:",
     "log_mode_errors": "Solo errores",
     "log_mode_full": "Registro completo",
     "log_title_full": "Registro de sincronización"
+  },
+  "master_wizard": {
+    "master_name": "Nombre del master",
+    "devices_to_control": "Interruptores a controlar",
+    "hint_2_9": "Selecciona de 2 a 9 interruptores con capacidad ON/OFF.",
+    "err_min2": "Selecciona al menos 2 interruptores.",
+    "err_max9": "Selecciona como máximo 9 interruptores.",
+    "err_device_conflict": "Uno o más dispositivos ya están en uso por: \"{names}\". Usa Reparar en ese grupo para editarlo, o elimínalo primero.",
+    "virtual_name": "Nombre del dispositivo virtual",
+    "master": "Master",
+    "slave": "Slave",
+    "master_selected": "Master seleccionado",
+    "no_master": "Sin master seleccionado",
+    "hint_master_slaves": "Elige un interruptor físico master y de 2 a 9 interruptores slave.",
+    "err_master_required": "Elige un interruptor master."
+  },
+  "master_pair": {
+    "title": "Crear Switch Master",
+    "name_placeholder": "p. ej. Escena Suite",
+    "btn_create": "Crear Switch Master",
+    "err_name": "Introduce un nombre para el master.",
+    "err_create": "Error al crear el Switch Master."
+  },
+  "master_repair": {
+    "title": "Editar Switch Master"
   }
 }

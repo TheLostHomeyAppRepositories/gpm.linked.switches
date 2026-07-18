@@ -120,6 +120,11 @@
     <input type="checkbox" id="show-status-toggle" onchange="changeShowStatus(this.checked)" />
   </div>
 
+  <div class="mode-row">
+    <span id="lbl-show-master-status"></span>
+    <input type="checkbox" id="show-master-status-toggle" onchange="changeShowMasterStatus(this.checked)" />
+  </div>
+
   <div class="actions">
     <button class="action" id="btn-copy" onclick="copyLog()"></button>
     <button class="action danger" id="btn-clear" onclick="clearLog()"></button>
@@ -253,6 +258,10 @@
       Homey.set('show_device_status', !!val, function() {});
     }
 
+    function changeShowMasterStatus(val) {
+      Homey.set('show_master_status', !!val, function() {});
+    }
+
     function updateTitle() {
       var isErrors = currentLogMode !== 'full';
       document.getElementById('lbl-title').textContent = isErrors
@@ -304,9 +313,14 @@
       document.getElementById('opt-errors').textContent  = Homey.__('settings.log_mode_errors');
       document.getElementById('opt-full').textContent    = Homey.__('settings.log_mode_full');
       document.getElementById('lbl-show-status').textContent = Homey.__('settings.show_status_label');
+      document.getElementById('lbl-show-master-status').textContent = Homey.__('settings.show_master_status_label');
 
       Homey.get('show_device_status', function(err, val) {
-        document.getElementById('show-status-toggle').checked = val !== false;
+        document.getElementById('show-status-toggle').checked = val === true || val === 'true';
+      });
+
+      Homey.get('show_master_status', function(err, val) {
+        document.getElementById('show-master-status-toggle').checked = val === true || val === 'true';
       });
 
       Homey.get('log_mode', function(err, val) {

@@ -62,9 +62,35 @@
     "filter_all": "Tutti",
     "filter_errors": "Errori",
     "log_mode_label": "Modalità log:",
-    "show_status_label": "Mostra stato dei sottodispositivi su tutte le schede di gruppo:",
+    "show_status_label": "Mostra lo stato dei subdevice nelle card Linked Switch:",
+    "show_master_status_label": "Mostra lo stato dei subdevice nelle card Switch Master:",
     "log_mode_errors": "Solo errori",
     "log_mode_full": "Log completo",
     "log_title_full": "Log di sincronizzazione"
+  },
+  "master_wizard": {
+    "master_name": "Nome master",
+    "devices_to_control": "Interruttori da controllare",
+    "hint_2_9": "Seleziona da 2 a 9 interruttori con capacità ON/OFF.",
+    "err_min2": "Seleziona almeno 2 interruttori.",
+    "err_max9": "Seleziona al massimo 9 interruttori.",
+    "err_device_conflict": "Uno o più dispositivi sono già usati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, oppure eliminalo prima.",
+    "virtual_name": "Nome dispositivo virtuale",
+    "master": "Master",
+    "slave": "Slave",
+    "master_selected": "Master selezionato",
+    "no_master": "Nessun master selezionato",
+    "hint_master_slaves": "Scegli un interruttore fisico master e da 2 a 9 interruttori slave.",
+    "err_master_required": "Scegli un interruttore master."
+  },
+  "master_pair": {
+    "title": "Crea Switch Master",
+    "name_placeholder": "es. Scena Suite",
+    "btn_create": "Crea Switch Master",
+    "err_name": "Inserisci un nome per il master.",
+    "err_create": "Errore durante la creazione dello Switch Master."
+  },
+  "master_repair": {
+    "title": "Modifica Switch Master"
   }
 }

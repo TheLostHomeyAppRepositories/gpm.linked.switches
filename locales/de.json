@@ -62,9 +62,35 @@
     "filter_all": "Alle",
     "filter_errors": "Fehler",
     "log_mode_label": "Log-Modus:",
-    "show_status_label": "Untergerätestatus auf allen Gruppenkarten anzeigen:",
+    "show_status_label": "Subgeräte-Status auf Linked Switch-Karten anzeigen:",
+    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:",
     "log_mode_errors": "Nur Fehler",
     "log_mode_full": "Vollständiges Sync-Log",
     "log_title_full": "Sync-Log"
+  },
+  "master_wizard": {
+    "master_name": "Master-Name",
+    "devices_to_control": "Zu steuernde Schalter",
+    "hint_2_9": "Wähle 2 bis 9 Schalter mit ON/OFF-Funktion.",
+    "err_min2": "Bitte mindestens 2 Schalter auswählen.",
+    "err_max9": "Bitte nicht mehr als 9 Schalter auswählen.",
+    "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparieren für diese Gruppe oder lösche sie zuerst.",
+    "virtual_name": "Name des virtuellen Geräts",
+    "master": "Master",
+    "slave": "Slave",
+    "master_selected": "Master ausgewählt",
+    "no_master": "Kein Master ausgewählt",
+    "hint_master_slaves": "Wähle einen physischen Master-Schalter und 2 bis 9 Slave-Schalter.",
+    "err_master_required": "Bitte einen Master-Schalter auswählen."
+  },
+  "master_pair": {
+    "title": "Switch Master erstellen",
+    "name_placeholder": "z. B. Suite-Szene",
+    "btn_create": "Switch Master erstellen",
+    "err_name": "Bitte einen Master-Namen eingeben.",
+    "err_create": "Fehler beim Erstellen des Switch Master."
+  },
+  "master_repair": {
+    "title": "Switch Master bearbeiten"
   }
 }

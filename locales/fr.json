@@ -62,9 +62,35 @@
     "filter_all": "Tout",
     "filter_errors": "Erreurs",
     "log_mode_label": "Mode journal :",
-    "show_status_label": "Afficher l'état des sous-appareils sur toutes les cartes de groupe :",
+    "show_status_label": "Afficher l'état des sous-appareils sur les cartes Linked Switch :",
+    "show_master_status_label": "Afficher l'état des sous-appareils sur les cartes Switch Master :",
     "log_mode_errors": "Erreurs seulement",
     "log_mode_full": "Journal complet",
     "log_title_full": "Journal de synchronisation"
+  },
+  "master_wizard": {
+    "master_name": "Nom du master",
+    "devices_to_control": "Interrupteurs à contrôler",
+    "hint_2_9": "Sélectionnez 2 à 9 interrupteurs avec la capacité ON/OFF.",
+    "err_min2": "Veuillez sélectionner au moins 2 interrupteurs.",
+    "err_max9": "Veuillez sélectionner au maximum 9 interrupteurs.",
+    "err_device_conflict": "Un ou plusieurs appareils sont déjà utilisés par : \"{names}\". Utilisez Réparer sur ce groupe pour le modifier, ou supprimez-le d’abord.",
+    "virtual_name": "Nom de l’appareil virtuel",
+    "master": "Master",
+    "slave": "Slave",
+    "master_selected": "Master sélectionné",
+    "no_master": "Aucun master sélectionné",
+    "hint_master_slaves": "Choisissez un interrupteur physique master et 2 à 9 interrupteurs slaves.",
+    "err_master_required": "Veuillez choisir un interrupteur master."
+  },
+  "master_pair": {
+    "title": "Créer un Switch Master",
+    "name_placeholder": "p. ex. Scène Suite",
+    "btn_create": "Créer le Switch Master",
+    "err_name": "Veuillez saisir un nom de master.",
+    "err_create": "Erreur lors de la création du Switch Master."
+  },
+  "master_repair": {
+    "title": "Modifier le Switch Master"
   }
 }

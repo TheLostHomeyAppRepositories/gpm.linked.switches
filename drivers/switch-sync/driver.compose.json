@@ -14,7 +14,17 @@
   },
   "class": "other",
   "capabilities": [
-    "onoff"
+    "onoff",
+    "linked_button.1",
+    "linked_button.2",
+    "linked_button.3",
+    "linked_button.4",
+    "linked_button.5",
+    "linked_button.6",
+    "linked_button.7",
+    "linked_button.8",
+    "linked_button.9",
+    "linked_button.10"
   ],
   "capabilitiesOptions": {
     "onoff": {
@@ -32,6 +42,16 @@
     "quickAction": "onoff",
     "components": [
       { "id": "onoff",           "capabilities": ["onoff"] },
+      { "id": "linked_button.1",  "capabilities": ["linked_button.1"] },
+      { "id": "linked_button.2",  "capabilities": ["linked_button.2"] },
+      { "id": "linked_button.3",  "capabilities": ["linked_button.3"] },
+      { "id": "linked_button.4",  "capabilities": ["linked_button.4"] },
+      { "id": "linked_button.5",  "capabilities": ["linked_button.5"] },
+      { "id": "linked_button.6",  "capabilities": ["linked_button.6"] },
+      { "id": "linked_button.7",  "capabilities": ["linked_button.7"] },
+      { "id": "linked_button.8",  "capabilities": ["linked_button.8"] },
+      { "id": "linked_button.9",  "capabilities": ["linked_button.9"] },
+      { "id": "linked_button.10", "capabilities": ["linked_button.10"] },
       { "id": "linked_switch.1",  "capabilities": ["linked_switch.1"] },
       { "id": "linked_switch.2",  "capabilities": ["linked_switch.2"] },
       { "id": "linked_switch.3",  "capabilities": ["linked_switch.3"] },

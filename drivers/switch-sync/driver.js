@@ -18,12 +18,35 @@ class SwitchSyncDriver extends Driver {
   // Returns a Map of deviceId → groupName for all devices already in a group.
   // Optionally excludes one group by its Homey device id (for repair).
   _buildOccupiedMap(excludeHomeyDeviceId = null) {
-    const occupied = new Map(); // physicalDeviceId → groupName
-    for (const device of this.getDevices()) {
-      if (excludeHomeyDeviceId && device.getId() === excludeHomeyDeviceId) continue;
-      const ids = device.getStoreValue('deviceIds') || [];
-      const name = device.getName();
-      for (const id of ids) occupied.set(id, name);
+    const occupied = new Map(); // physicalDeviceId → { name, role }
+    const driverIds = ['switch-sync', 'switch-master'];
+    const markOccupied = (id, name, role) => {
+      const current = occupied.get(id);
+      if (!current || current.role !== 'member' || role === 'member') {
+        occupied.set(id, { name, role });
+      }
+    };
+
+    for (const driverId of driverIds) {
+      let driver;
+      try {
+        driver = this.homey.drivers.getDriver(driverId);
+      } catch (_) {
+        continue;
+      }
+
+      for (const device of driver.getDevices()) {
+        if (excludeHomeyDeviceId && device.getId() === excludeHomeyDeviceId) continue;
+        const name = device.getName();
+        const masterId = device.getStoreValue('masterDeviceId');
+        if (masterId) {
+          markOccupied(masterId, name, 'master');
+        }
+
+        for (const id of (device.getStoreValue('deviceIds') || []).filter(Boolean)) {
+          markOccupied(id, name, 'member');
+        }
+      }
     }
     return occupied;
   }
@@ -43,11 +66,11 @@ class SwitchSyncDriver extends Driver {
     });
 
     session.setHandler('configure_binding', async (config) => {
-      // Validate: no device already belongs to another group
+      // Validate: no device already belongs to another LinkSwitch group
       const occupied = this._buildOccupiedMap();
       const conflicts = (config.deviceIds || []).filter(id => occupied.has(id));
       if (conflicts.length > 0) {
-        const names = [...new Set(conflicts.map(id => occupied.get(id)))];
+        const names = [...new Set(conflicts.map(id => occupied.get(id).name))];
         throw new Error(
           this.homey.__('pair.err_device_conflict').replace('{names}', names.join('", "'))
         );
@@ -88,11 +111,11 @@ class SwitchSyncDriver extends Driver {
         throw new Error(this.homey.__('repair.err_min2'));
       const unique = [...new Set(ids)];
 
-      // Validate: no device already belongs to another group (excluding this one)
+      // Validate: no device already belongs to another LinkSwitch group (excluding this one)
       const occupied = this._buildOccupiedMap(device.getId());
       const conflicts = unique.filter(id => occupied.has(id));
       if (conflicts.length > 0) {
-        const names = [...new Set(conflicts.map(id => occupied.get(id)))];
+        const names = [...new Set(conflicts.map(id => occupied.get(id).name))];
         throw new Error(
           this.homey.__('repair.err_device_conflict').replace('{names}', names.join('", "'))
         );

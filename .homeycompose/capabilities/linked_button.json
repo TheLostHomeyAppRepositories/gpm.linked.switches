@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "title": { "en": "Linked Switch Button" },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "button",
+  "icon": "./assets/icon-power.svg",
+  "insights": false
+}

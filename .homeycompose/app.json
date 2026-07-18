@@ -1,6 +1,6 @@
 {
   "id": "gpm.linked.switches",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -24,6 +24,52 @@
   ],
   "permissions": [
     "homey:manager:api"
+  ],
+  "settings": [
+    {
+      "id": "show_device_status",
+      "type": "dropdown",
+      "title": {
+        "en": "Show subdevice status on Linked Switch cards"
+      },
+      "value": "true",
+      "values": [
+        {
+          "id": "true",
+          "title": {
+            "en": "Show"
+          }
+        },
+        {
+          "id": "false",
+          "title": {
+            "en": "Hide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "show_master_status",
+      "type": "dropdown",
+      "title": {
+        "en": "Show subdevice status on Switch Master cards"
+      },
+      "value": "false",
+      "values": [
+        {
+          "id": "true",
+          "title": {
+            "en": "Show"
+          }
+        },
+        {
+          "id": "false",
+          "title": {
+            "en": "Hide"
+          }
+        }
+      ]
+    }
   ],
   "images": {
     "small": "/assets/images/small.png",

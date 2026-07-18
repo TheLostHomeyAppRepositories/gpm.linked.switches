@@ -44,6 +44,9 @@ class SwitchSyncDevice extends Device {
     // not one identical entry every cycle.
     this._activeDesyncs = new Map();
 
+    // Clickable per-device controls.
+    this._registeredButtonCaps = new Set();
+
     // Flow trigger fired when a device fails to reach the expected state
     this._desyncTriggerCard = this.homey.flow.getDeviceTriggerCard('group_desynced');
 
@@ -113,6 +116,7 @@ class SwitchSyncDevice extends Device {
         this._deviceNames.set(deviceId, name);
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
+          this._updateButtonValue(deviceId);
           this._updateSubCapStatus(deviceId);
           this._onLinkedDeviceChanged(deviceId, name, value)
             .catch(err => this.error(`[${this.getName()}] Error handling change from "${name}": ${err.message}`));
@@ -172,18 +176,25 @@ class SwitchSyncDevice extends Device {
   // ─── Sub-capabilities (device names on card) ──────────────────────────────
 
   async _syncSubCapabilities(deviceIds) {
-    const needed = new Set(deviceIds.map((_, i) => `linked_switch.${i + 1}`));
+    const showStatus = this._shouldShowDeviceStatus();
+    const neededStatus = new Set(showStatus ? deviceIds.map((_, i) => `linked_switch.${i + 1}`) : []);
+    const neededButtons = new Set(deviceIds.map((_, i) => this._buttonCapId(i)));
 
     for (const cap of this.getCapabilities()) {
       const isOldOnoff     = cap !== 'onoff' && cap.startsWith('onoff.');
-      const isStale        = cap.startsWith('linked_switch.') && !needed.has(cap);
+      const isStaleStatus  = cap.startsWith('linked_switch.') && !neededStatus.has(cap);
+      const isStaleButton  = cap.startsWith('linked_button.') && !neededButtons.has(cap);
       const isOldDevStatus = cap.startsWith('device_status.');
-      if (isOldOnoff || isStale || isOldDevStatus) {
+      if (isOldOnoff || isStaleStatus || isStaleButton || isOldDevStatus) {
         await this.removeCapability(cap).catch(() => {});
       }
     }
 
     for (let i = 0; i < deviceIds.length; i++) {
+      await this._setupButtonCapability(i, deviceIds[i]);
+
+      if (!showStatus) continue;
+
       const capId = `linked_switch.${i + 1}`;
       try {
         if (!this.hasCapability(capId)) await this.addCapability(capId);
@@ -194,8 +205,68 @@ class SwitchSyncDevice extends Device {
     }
   }
 
+  async _refreshStatusCapabilities() {
+    await this._syncSubCapabilities(this.getStoreValue('deviceIds') || []);
+  }
+
+  _buttonCapId(index) {
+    return `linked_button.${index + 1}`;
+  }
+
+  async _setupButtonCapability(index, deviceId) {
+    const capId = this._buttonCapId(index);
+    const name = this._deviceNames.get(deviceId) || deviceId;
+
+    try {
+      if (!this.hasCapability(capId)) await this.addCapability(capId);
+      await this.setCapabilityOptions(capId, { title: { en: name } });
+      await this._setButtonCapValue(capId, this._getLinkedValue(deviceId));
+      this._registerButtonCapability(capId);
+    } catch (err) {
+      this.error(`[${this.getName()}] Could not set up ${capId}: ${err.message}`);
+    }
+  }
+
+  _registerButtonCapability(capId) {
+    if (this._registeredButtonCaps.has(capId)) return;
+    this._registeredButtonCaps.add(capId);
+
+    this.registerCapabilityListener(capId, async (value) => {
+      const deviceIds = this.getStoreValue('deviceIds') || [];
+      const index = Number(capId.replace('linked_button.', '')) - 1;
+      const deviceId = deviceIds[index];
+      const entry = this._listeners.get(deviceId);
+      if (!entry || !entry.device.available) return;
+
+      this.log(`[${this.getName()}] linked button: "${entry.device.name}" -> ${value ? 'ON' : 'OFF'}`);
+      await this._setButtonCapValue(capId, value).catch(() => {});
+      await entry.device.setCapabilityValue({ capabilityId: 'onoff', value });
+    });
+  }
+
+  _getLinkedValue(deviceId) {
+    const entry = this._listeners.get(deviceId);
+    return entry ? entry.onoffInstance.value : null;
+  }
+
+  async _setButtonCapValue(capId, value) {
+    if (!this.hasCapability(capId)) return;
+    if (typeof value !== 'boolean') return;
+    if (this.getCapabilityValue(capId) === value) return;
+    await this.setCapabilityValue(capId, value);
+  }
+
+  _updateButtonValue(deviceId) {
+    const deviceIds = this.getStoreValue('deviceIds') || [];
+    const index = deviceIds.indexOf(deviceId);
+    if (index === -1) return;
+    this._setButtonCapValue(this._buttonCapId(index), this._getLinkedValue(deviceId)).catch(() => {});
+  }
+
   _shouldShowDeviceStatus() {
-    return this.homey.settings.get('show_device_status') !== false;
+    const value = this.homey.settings.get('show_device_status');
+    if (value === undefined || value === null) return true;
+    return value !== false && value !== 'false' && value !== 0 && value !== '0';
   }
 
   // Render one linked_switch.N — either live ON/OFF status (default), with a ⚠

@@ -62,9 +62,35 @@
     "filter_all": "Alles",
     "filter_errors": "Fouten",
     "log_mode_label": "Logmodus:",
-    "show_status_label": "Toon subapparaatstatus op alle groepskaarten:",
+    "show_status_label": "Toon subapparaatstatus op Linked Switch-kaarten:",
+    "show_master_status_label": "Toon subapparaatstatus op Switch Master-kaarten:",
     "log_mode_errors": "Alleen fouten",
     "log_mode_full": "Volledig synclogboek",
     "log_title_full": "Synclogboek"
+  },
+  "master_wizard": {
+    "master_name": "Masternaam",
+    "devices_to_control": "Schakelaars om te bedienen",
+    "hint_2_9": "Selecteer 2 tot 9 schakelaars met ON/OFF-mogelijkheid.",
+    "err_min2": "Selecteer ten minste 2 schakelaars.",
+    "err_max9": "Selecteer niet meer dan 9 schakelaars.",
+    "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Repareren op die groep om deze te bewerken, of verwijder deze eerst.",
+    "virtual_name": "Naam virtueel apparaat",
+    "master": "Master",
+    "slave": "Slave",
+    "master_selected": "Master geselecteerd",
+    "no_master": "Geen master geselecteerd",
+    "hint_master_slaves": "Kies één fysieke masterschakelaar en 2 tot 9 slaveschakelaars.",
+    "err_master_required": "Kies één masterschakelaar."
+  },
+  "master_pair": {
+    "title": "Switch Master maken",
+    "name_placeholder": "bijv. Suite scene",
+    "btn_create": "Switch Master maken",
+    "err_name": "Voer een masternaam in.",
+    "err_create": "Fout bij maken van Switch Master."
+  },
+  "master_repair": {
+    "title": "Switch Master bewerken"
   }
 }

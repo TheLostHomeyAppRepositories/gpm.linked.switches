@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "gpm.linked.switches",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -25,6 +25,52 @@
   ],
   "permissions": [
     "homey:manager:api"
+  ],
+  "settings": [
+    {
+      "id": "show_device_status",
+      "type": "dropdown",
+      "title": {
+        "en": "Show subdevice status on Linked Switch cards"
+      },
+      "value": "true",
+      "values": [
+        {
+          "id": "true",
+          "title": {
+            "en": "Show"
+          }
+        },
+        {
+          "id": "false",
+          "title": {
+            "en": "Hide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "show_master_status",
+      "type": "dropdown",
+      "title": {
+        "en": "Show subdevice status on Switch Master cards"
+      },
+      "value": "false",
+      "values": [
+        {
+          "id": "true",
+          "title": {
+            "en": "Show"
+          }
+        },
+        {
+          "id": "false",
+          "title": {
+            "en": "Hide"
+          }
+        }
+      ]
+    }
   ],
   "images": {
     "small": "/assets/images/small.png",
@@ -160,6 +206,280 @@
   "drivers": [
     {
       "name": {
+        "en": "Switch Master"
+      },
+      "images": {
+        "small": "/drivers/switch-master/assets/images/small.png",
+        "large": "/drivers/switch-master/assets/images/large.png",
+        "xlarge": "/drivers/switch-master/assets/images/xlarge.png"
+      },
+      "class": "socket",
+      "capabilities": [
+        "onoff",
+        "master_button.1",
+        "master_button.2",
+        "master_button.3",
+        "master_button.4",
+        "master_button.5",
+        "master_button.6",
+        "master_button.7",
+        "master_button.8",
+        "master_button.9",
+        "master_button.10"
+      ],
+      "capabilitiesOptions": {
+        "onoff": {
+          "title": {
+            "en": "Master Switch"
+          },
+          "icon": "/drivers/switch-master/assets/icon-master.svg"
+        },
+        "master_button.1": {
+          "title": {
+            "en": "Master"
+          },
+          "icon": "/drivers/switch-master/assets/icon-master.svg"
+        },
+        "master_button.2": {
+          "title": {
+            "en": "Slave 1"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.3": {
+          "title": {
+            "en": "Slave 2"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.4": {
+          "title": {
+            "en": "Slave 3"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.5": {
+          "title": {
+            "en": "Slave 4"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.6": {
+          "title": {
+            "en": "Slave 5"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.7": {
+          "title": {
+            "en": "Slave 6"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.8": {
+          "title": {
+            "en": "Slave 7"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.9": {
+          "title": {
+            "en": "Slave 8"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        },
+        "master_button.10": {
+          "title": {
+            "en": "Slave 9"
+          },
+          "icon": "/drivers/switch-master/assets/icon.svg"
+        }
+      },
+      "ui": {
+        "quickAction": "onoff",
+        "components": [
+          {
+            "id": "master_button.1",
+            "capabilities": [
+              "master_button.1"
+            ]
+          },
+          {
+            "id": "master_button.2",
+            "capabilities": [
+              "master_button.2"
+            ]
+          },
+          {
+            "id": "master_button.3",
+            "capabilities": [
+              "master_button.3"
+            ]
+          },
+          {
+            "id": "master_button.4",
+            "capabilities": [
+              "master_button.4"
+            ]
+          },
+          {
+            "id": "master_button.5",
+            "capabilities": [
+              "master_button.5"
+            ]
+          },
+          {
+            "id": "master_button.6",
+            "capabilities": [
+              "master_button.6"
+            ]
+          },
+          {
+            "id": "master_button.7",
+            "capabilities": [
+              "master_button.7"
+            ]
+          },
+          {
+            "id": "master_button.8",
+            "capabilities": [
+              "master_button.8"
+            ]
+          },
+          {
+            "id": "master_button.9",
+            "capabilities": [
+              "master_button.9"
+            ]
+          },
+          {
+            "id": "master_button.10",
+            "capabilities": [
+              "master_button.10"
+            ]
+          },
+          {
+            "id": "linked_switch.1",
+            "capabilities": [
+              "linked_switch.1"
+            ]
+          },
+          {
+            "id": "linked_switch.2",
+            "capabilities": [
+              "linked_switch.2"
+            ]
+          },
+          {
+            "id": "linked_switch.3",
+            "capabilities": [
+              "linked_switch.3"
+            ]
+          },
+          {
+            "id": "linked_switch.4",
+            "capabilities": [
+              "linked_switch.4"
+            ]
+          },
+          {
+            "id": "linked_switch.5",
+            "capabilities": [
+              "linked_switch.5"
+            ]
+          },
+          {
+            "id": "linked_switch.6",
+            "capabilities": [
+              "linked_switch.6"
+            ]
+          },
+          {
+            "id": "linked_switch.7",
+            "capabilities": [
+              "linked_switch.7"
+            ]
+          },
+          {
+            "id": "linked_switch.8",
+            "capabilities": [
+              "linked_switch.8"
+            ]
+          },
+          {
+            "id": "linked_switch.9",
+            "capabilities": [
+              "linked_switch.9"
+            ]
+          },
+          {
+            "id": "linked_switch.10",
+            "capabilities": [
+              "linked_switch.10"
+            ]
+          }
+        ]
+      },
+      "settings": [
+        {
+          "id": "linked_devices_info",
+          "type": "label",
+          "label": {
+            "en": "Controlled Switches"
+          },
+          "value": "None"
+        },
+        {
+          "id": "suppress_ms",
+          "type": "number",
+          "label": {
+            "en": "Echo suppress window (ms)"
+          },
+          "hint": {
+            "en": "Ignore echoes after sending a command."
+          },
+          "value": 2000
+        },
+        {
+          "id": "debug",
+          "type": "checkbox",
+          "label": {
+            "en": "Enable debug logging"
+          },
+          "value": false
+        }
+      ],
+      "pair": [
+        {
+          "id": "start",
+          "navigation": {
+            "next": "list_devices"
+          }
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "start",
+          "navigation": {
+            "next": "none"
+          }
+        }
+      ],
+      "id": "switch-master"
+    },
+    {
+      "name": {
         "en": "Linked Switch Group",
         "nl": "Gekoppelde schakelaargroep",
         "de": "Verknüpfte Schaltergruppe",
@@ -174,7 +494,17 @@
       },
       "class": "other",
       "capabilities": [
-        "onoff"
+        "onoff",
+        "linked_button.1",
+        "linked_button.2",
+        "linked_button.3",
+        "linked_button.4",
+        "linked_button.5",
+        "linked_button.6",
+        "linked_button.7",
+        "linked_button.8",
+        "linked_button.9",
+        "linked_button.10"
       ],
       "capabilitiesOptions": {
         "onoff": {
@@ -195,6 +525,66 @@
             "id": "onoff",
             "capabilities": [
               "onoff"
+            ]
+          },
+          {
+            "id": "linked_button.1",
+            "capabilities": [
+              "linked_button.1"
+            ]
+          },
+          {
+            "id": "linked_button.2",
+            "capabilities": [
+              "linked_button.2"
+            ]
+          },
+          {
+            "id": "linked_button.3",
+            "capabilities": [
+              "linked_button.3"
+            ]
+          },
+          {
+            "id": "linked_button.4",
+            "capabilities": [
+              "linked_button.4"
+            ]
+          },
+          {
+            "id": "linked_button.5",
+            "capabilities": [
+              "linked_button.5"
+            ]
+          },
+          {
+            "id": "linked_button.6",
+            "capabilities": [
+              "linked_button.6"
+            ]
+          },
+          {
+            "id": "linked_button.7",
+            "capabilities": [
+              "linked_button.7"
+            ]
+          },
+          {
+            "id": "linked_button.8",
+            "capabilities": [
+              "linked_button.8"
+            ]
+          },
+          {
+            "id": "linked_button.9",
+            "capabilities": [
+              "linked_button.9"
+            ]
+          },
+          {
+            "id": "linked_button.10",
+            "capabilities": [
+              "linked_button.10"
             ]
           },
           {
@@ -386,6 +776,17 @@
     }
   ],
   "capabilities": {
+    "linked_button": {
+      "type": "boolean",
+      "title": {
+        "en": "Linked Switch Button"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "button",
+      "icon": "./assets/icon-power.svg",
+      "insights": false
+    },
     "linked_switch": {
       "type": "string",
       "title": {
@@ -394,7 +795,18 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "./assets/icon.svg",
+      "icon": "./assets/icon-master.svg",
+      "insights": false
+    },
+    "master_button": {
+      "type": "boolean",
+      "title": {
+        "en": "Master Button"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "button",
+      "icon": "./assets/icon-power.svg",
       "insights": false
     }
   }

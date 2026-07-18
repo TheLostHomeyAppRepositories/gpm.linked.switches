@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "title": { "en": "Master Button" },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "button",
+  "icon": "./assets/icon-power.svg",
+  "insights": false
+}

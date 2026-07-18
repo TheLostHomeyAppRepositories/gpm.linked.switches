@@ -5,6 +5,12 @@ const { HomeyAPI } = require('homey-api');
 
 module.exports = class SwitchSyncApp extends Homey.App {
 
+  _isSettingEnabled(value, defaultValue = true) {
+    if (value === undefined || value === null) return defaultValue;
+    if (value === false || value === 'false' || value === 0 || value === '0') return false;
+    return true;
+  }
+
   async onInit() {
     this.log('Switch Sync app initialized');
     this._homeyAPI     = null;
@@ -12,7 +18,10 @@ module.exports = class SwitchSyncApp extends Homey.App {
     this._syncLogTimer = null;
 
     if (this.homey.settings.get('show_device_status') === undefined) {
-      this.homey.settings.set('show_device_status', true);
+      this.homey.settings.set('show_device_status', 'true');
+    }
+    if (this.homey.settings.get('show_master_status') === undefined) {
+      this.homey.settings.set('show_master_status', 'false');
     }
 
     this.homey.settings.on('set', (key) => {
@@ -28,7 +37,7 @@ module.exports = class SwitchSyncApp extends Homey.App {
         }
       }
 
-      if (key === 'show_device_status') {
+      if (key === 'show_device_status' || key === 'show_master_status') {
         this._renderAllGroupCards().catch(err => this.error(`Failed to refresh group cards: ${err.message}`));
       }
     });
@@ -115,10 +124,20 @@ module.exports = class SwitchSyncApp extends Homey.App {
   }
 
   async _renderAllGroupCards() {
-    const driver = this.homey.drivers.getDriver('switch-sync');
-    for (const device of driver.getDevices()) {
-      if (typeof device._renderAllSubCapabilities === 'function') {
-        await device._renderAllSubCapabilities();
+    for (const driverId of ['switch-sync', 'switch-master']) {
+      let driver;
+      try {
+        driver = this.homey.drivers.getDriver(driverId);
+      } catch (_) {
+        continue;
+      }
+
+      for (const device of driver.getDevices()) {
+        if (typeof device._refreshStatusCapabilities === 'function') {
+          await device._refreshStatusCapabilities();
+        } else if (typeof device._renderAllSubCapabilities === 'function') {
+          await device._renderAllSubCapabilities();
+        }
       }
     }
   }
@@ -145,7 +164,7 @@ module.exports = class SwitchSyncApp extends Homey.App {
     return Object.values(allDevices)
       .filter(d => {
         const caps = d.capabilities || [];
-        const isOwn = d.driverId === 'switch-sync' && d.ownerUri === 'homey:app:gpm.linked.switches';
+        const isOwn = d.ownerUri === 'homey:app:gpm.linked.switches';
         return caps.includes('onoff') && !isOwn;
       })
       .map(d => {

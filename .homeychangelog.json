@@ -1,6 +1,6 @@
 {
   "1.0.0": {
-    "en": "First version!"
+    "en": "Initial release"
   },
   "1.0.1": {
     "en": "adjust description. "
@@ -28,5 +28,8 @@
   },
   "1.0.10": {
     "en": "Fixed the titles of the group sync status and Force Resync Flow cards."
+  },
+  "1.1.0": {
+    "en": "Added the Switch Master driver for scene-style control, plus separate status toggles for Linked Switch and Switch Master cards."
   }
 }

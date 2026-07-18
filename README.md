@@ -4,6 +4,27 @@ Sync two or more ON/OFF devices so they always stay in the same state, no matter
 
 Perfect for three-way switch setups where multiple physical switches control the same light or group of lights. When any switch in the group is toggled, all others follow instantly.
 
+For scene-style control, Switch Master lets one master drive a set of subdevices, and the master only syncs back when the subdevices reach unanimity.
+
+---
+
+## Drivers At A Glance
+
+This app ships with two different drivers:
+
+- **Linked Switch Group** (`switch-sync`) keeps devices in a closed sync group.
+- **Switch Master** (`switch-master`) treats one device as the master and the others as slaves for scene-style control.
+
+They solve different problems:
+
+- `switch-sync` is for devices that should always mirror each other.
+- `switch-master` is for a master switch that can toggle a set of slaves, while still allowing manual control of the slaves.
+
+The UI also follows that split:
+
+- Linked Switch cards can show subdevice status and desync warnings.
+- Switch Master cards can show optional subdevice status, but the clickable controls are usually the main view.
+
 ---
 
 ## How to create a group
@@ -18,6 +39,44 @@ Perfect for three-way switch setups where multiple physical switches control the
 From that point on, toggling any device in the group (physically or via Homey) will propagate to all others automatically.
 
 ---
+
+## Association rules
+
+The app supports two association models, and each one has its own rule set:
+
+### Linked Switch groups
+
+- A Linked Switch group is closed: devices inside it stay synchronized with each other.
+- A physical device can belong to only one Linked Switch group.
+- You cannot build a chain of Linked Switch groups.
+- If you want to extend a Linked Switch group, use **Repair** on that same group and add the new device there.
+- The `show_device_status` app setting controls whether Linked Switch cards show live status or only the device names.
+
+### Switch Master groups
+
+- A Switch Master has one `master` device and 2 to 9 `slave` devices.
+- The `master` device cannot be the `master` of another Switch Master.
+- The `master` device cannot belong to a Linked Switch group.
+- A `slave` device can be a member of a Linked Switch group.
+- The `master` follows the slaves only when they all agree on the same state.
+- If a Switch Master includes one device from a Linked Switch group, it should not include another device from that same Linked Switch group in the same Switch Master, because that would be redundant.
+- A Switch Master may trigger a Linked Switch device, and the Linked Switch will still keep its own members in sync.
+- The `show_master_status` app setting controls whether Switch Master cards show live status for each subdevice.
+
+### Practical examples
+
+- `D-E` is a valid Linked Switch group.
+- `E-F` is not allowed if `D-E` already exists; expand `D-E` through Repair instead.
+- `A -> D -> E` is valid when `A` is a Switch Master and `D-E` is a Linked Switch.
+- `B` cannot become the master of another Switch Master if `B` is already used as a Switch Master master.
+
+### What Is Excluded
+
+- No cascaded Linked Switch groups.
+- No shared members between two Linked Switch groups.
+- No second Switch Master using a device that is already a Switch Master master.
+- No Switch Master that contains two devices from the same Linked Switch group.
+- No need to re-pair a device just to expand an existing Linked Switch group: use **Repair** on the group instead.
 
 ## Settings (per group)
 
