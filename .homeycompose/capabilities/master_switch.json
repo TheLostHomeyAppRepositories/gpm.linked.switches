@@ -1,0 +1,9 @@
+{
+  "type": "boolean",
+  "title": { "en": "Master Switch" },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "button",
+  "icon": "./assets/icon-masterswitch.svg",
+  "insights": false
+}

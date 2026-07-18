@@ -1,10 +1,10 @@
 # Linked Switches
 
-Sync two or more ON/OFF devices so they always stay in the same state, no matter which one triggers the change.
+Linked Switches sync 2 to 10 ON/OFF devices so they always stay in the same state, no matter which one triggers the change.
 
 Perfect for three-way switch setups where multiple physical switches control the same light or group of lights. When any switch in the group is toggled, all others follow instantly.
 
-For scene-style control, Switch Master lets one master drive a set of subdevices, and the master only syncs back when the subdevices reach unanimity.
+For scene-style control, Switch Master uses 1 master and 2 to 9 subdevices. The master can override the slaves, but the slaves keep their individual control. When all slaves reach unanimity, the master syncs back if it was out of step.
 
 ---
 
@@ -12,13 +12,13 @@ For scene-style control, Switch Master lets one master drive a set of subdevices
 
 This app ships with two different drivers:
 
-- **Linked Switch Group** (`switch-sync`) keeps devices in a closed sync group.
-- **Switch Master** (`switch-master`) treats one device as the master and the others as slaves for scene-style control.
+- **Linked Switch Group** (`switch-sync`) keeps 2 to 10 devices in a closed sync group.
+- **Switch Master** (`switch-master`) uses 1 master and 2 to 9 slaves for scene-style control.
 
 They solve different problems:
 
 - `switch-sync` is for devices that should always mirror each other.
-- `switch-master` is for a master switch that can toggle a set of slaves, while still allowing manual control of the slaves.
+- `switch-master` is for a master switch that can toggle a set of slaves, while still allowing manual control of the slaves and syncing back on unanimity.
 
 The UI also follows that split:
 

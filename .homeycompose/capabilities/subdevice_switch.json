@@ -1,6 +1,6 @@
 {
   "type": "string",
-  "title": { "en": "Linked Switch" },
+  "title": { "en": "Subdevice Switch" },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",

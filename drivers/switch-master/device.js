@@ -128,7 +128,11 @@ class SwitchMasterDevice extends Device {
         if (!this.hasCapability(capId)) await this.addCapability(capId);
         const isMaster = i === 0 && this._master && this._master.deviceId === deviceId;
         const name = this._deviceNames.get(deviceId) || deviceId;
-        await this.setCapabilityOptions(capId, { title: { en: isMaster ? `MASTER: ${name}` : name } });
+        const icon = isMaster ? '/drivers/switch-master/assets/icon-masterswitch.svg' : '/drivers/switch-master/assets/icon.svg';
+        await this.setCapabilityOptions(capId, {
+          title: { en: isMaster ? `MASTER: ${name}` : name },
+          ...(isMaster ? { icon } : {}),
+        });
         await this._setControlCapValue(capId, isMaster ? this._getPhysicalMasterValue() : this._getSlaveValue(deviceId));
         this._registerControlCapability(capId);
       } catch (err) {
@@ -143,7 +147,7 @@ class SwitchMasterDevice extends Device {
     const needed = new Set(showStatus ? statusIds.map((_, i) => this._statusCapId(i)) : []);
 
     for (const cap of this.getCapabilities()) {
-      const isStaleStatus = cap.startsWith('linked_switch.') && !needed.has(cap);
+      const isStaleStatus = (cap.startsWith('subdevice_switch.') || cap.startsWith('linked_switch.')) && !needed.has(cap);
       if (isStaleStatus) await this.removeCapability(cap).catch(() => {});
     }
 
@@ -171,7 +175,7 @@ class SwitchMasterDevice extends Device {
   }
 
   _statusCapId(index) {
-    return `linked_switch.${index + 1}`;
+    return `subdevice_switch.${index + 1}`;
   }
 
   async _renderStatusCapability(index, deviceId) {
@@ -181,8 +185,12 @@ class SwitchMasterDevice extends Device {
     const isMaster = index === 0 && this._master && this._master.deviceId === deviceId;
     const name = this._deviceNames.get(deviceId) || deviceId;
     const title = isMaster ? `MASTER: ${name}` : name;
+    const icon = isMaster ? '/drivers/switch-master/assets/icon-masterswitch.svg' : '/drivers/switch-master/assets/icon.svg';
 
-    await this.setCapabilityOptions(capId, { title: { en: title } });
+    await this.setCapabilityOptions(capId, {
+      title: { en: title },
+      ...(isMaster ? { icon } : {}),
+    });
     await this.setCapabilityValue(capId, this._statusCapText(deviceId));
   }
 
@@ -284,19 +292,14 @@ class SwitchMasterDevice extends Device {
     if (this._master) await this._updateControlValue(this._master.deviceId);
     if (this._master) await this._updateStatusCapability(this._master.deviceId);
 
-    if (this._master && this._isSuppressed(this._master.deviceId, value)) {
-      if (this.getSetting('debug')) this.log(`[${this.getName()}] Ignored master echo from "${masterName}"`);
-      return;
-    }
+    if (this._master && this._isSuppressed(this._master.deviceId, value)) return;
 
     this.log(`[${this.getName()}] Physical master "${masterName}" -> ${value ? 'ON' : 'OFF'}`);
     await this._setAllSlaves(value, 'physical master');
   }
 
   async _onSlaveChanged(deviceId, name, value) {
-    if (this._isSuppressed(deviceId, value) && this.getSetting('debug')) {
-      this.log(`[${this.getName()}] Ignored slave echo from "${name}"`);
-    }
+    if (this._isSuppressed(deviceId, value)) return;
 
     const index = (this.getStoreValue('deviceIds') || []).indexOf(deviceId);
     if (index !== -1) {

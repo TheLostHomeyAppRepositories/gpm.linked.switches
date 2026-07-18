@@ -177,12 +177,12 @@ class SwitchSyncDevice extends Device {
 
   async _syncSubCapabilities(deviceIds) {
     const showStatus = this._shouldShowDeviceStatus();
-    const neededStatus = new Set(showStatus ? deviceIds.map((_, i) => `linked_switch.${i + 1}`) : []);
+      const neededStatus = new Set(showStatus ? deviceIds.map((_, i) => `subdevice_switch.${i + 1}`) : []);
     const neededButtons = new Set(deviceIds.map((_, i) => this._buttonCapId(i)));
 
     for (const cap of this.getCapabilities()) {
       const isOldOnoff     = cap !== 'onoff' && cap.startsWith('onoff.');
-      const isStaleStatus  = cap.startsWith('linked_switch.') && !neededStatus.has(cap);
+      const isStaleStatus  = (cap.startsWith('subdevice_switch.') || cap.startsWith('linked_switch.')) && !neededStatus.has(cap);
       const isStaleButton  = cap.startsWith('linked_button.') && !neededButtons.has(cap);
       const isOldDevStatus = cap.startsWith('device_status.');
       if (isOldOnoff || isStaleStatus || isStaleButton || isOldDevStatus) {
@@ -195,7 +195,7 @@ class SwitchSyncDevice extends Device {
 
       if (!showStatus) continue;
 
-      const capId = `linked_switch.${i + 1}`;
+      const capId = `subdevice_switch.${i + 1}`;
       try {
         if (!this.hasCapability(capId)) await this.addCapability(capId);
       } catch (err) {
@@ -269,11 +269,11 @@ class SwitchSyncDevice extends Device {
     return value !== false && value !== 'false' && value !== 0 && value !== '0';
   }
 
-  // Render one linked_switch.N — either live ON/OFF status (default), with a ⚠
+  // Render one subdevice_switch.N — either live ON/OFF status (default), with a ⚠
   // marker when diverging from the group state, or just the device name.
   // Controlled by the global app setting `show_device_status`.
   async _renderSubCapability(index, deviceId) {
-    const capId = `linked_switch.${index + 1}`;
+    const capId = `subdevice_switch.${index + 1}`;
     if (!this.hasCapability(capId)) return;
     const name = this._deviceNames.get(deviceId) || deviceId;
     try {
@@ -312,7 +312,7 @@ class SwitchSyncDevice extends Device {
     const deviceIds = this.getStoreValue('deviceIds') || [];
     const i = deviceIds.indexOf(deviceId);
     if (i === -1) return;
-    const capId = `linked_switch.${i + 1}`;
+    const capId = `subdevice_switch.${i + 1}`;
     if (!this.hasCapability(capId)) return;
     this.setCapabilityValue(capId, this._subCapStatus(deviceId)).catch(() => {});
   }

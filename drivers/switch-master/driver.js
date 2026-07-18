@@ -108,7 +108,6 @@ class SwitchMasterDriver extends Driver {
         },
         settings: {
           suppress_ms: 2000,
-          debug: false,
           linked_devices_info: 'Pending master...',
         },
       }];

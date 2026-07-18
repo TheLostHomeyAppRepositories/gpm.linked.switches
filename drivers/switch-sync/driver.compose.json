@@ -52,16 +52,16 @@
       { "id": "linked_button.8",  "capabilities": ["linked_button.8"] },
       { "id": "linked_button.9",  "capabilities": ["linked_button.9"] },
       { "id": "linked_button.10", "capabilities": ["linked_button.10"] },
-      { "id": "linked_switch.1",  "capabilities": ["linked_switch.1"] },
-      { "id": "linked_switch.2",  "capabilities": ["linked_switch.2"] },
-      { "id": "linked_switch.3",  "capabilities": ["linked_switch.3"] },
-      { "id": "linked_switch.4",  "capabilities": ["linked_switch.4"] },
-      { "id": "linked_switch.5",  "capabilities": ["linked_switch.5"] },
-      { "id": "linked_switch.6",  "capabilities": ["linked_switch.6"] },
-      { "id": "linked_switch.7",  "capabilities": ["linked_switch.7"] },
-      { "id": "linked_switch.8",  "capabilities": ["linked_switch.8"] },
-      { "id": "linked_switch.9",  "capabilities": ["linked_switch.9"] },
-      { "id": "linked_switch.10", "capabilities": ["linked_switch.10"] }
+      { "id": "subdevice_switch.1",  "capabilities": ["subdevice_switch.1"] },
+      { "id": "subdevice_switch.2",  "capabilities": ["subdevice_switch.2"] },
+      { "id": "subdevice_switch.3",  "capabilities": ["subdevice_switch.3"] },
+      { "id": "subdevice_switch.4",  "capabilities": ["subdevice_switch.4"] },
+      { "id": "subdevice_switch.5",  "capabilities": ["subdevice_switch.5"] },
+      { "id": "subdevice_switch.6",  "capabilities": ["subdevice_switch.6"] },
+      { "id": "subdevice_switch.7",  "capabilities": ["subdevice_switch.7"] },
+      { "id": "subdevice_switch.8",  "capabilities": ["subdevice_switch.8"] },
+      { "id": "subdevice_switch.9",  "capabilities": ["subdevice_switch.9"] },
+      { "id": "subdevice_switch.10", "capabilities": ["subdevice_switch.10"] }
     ]
   },
   "settings": [

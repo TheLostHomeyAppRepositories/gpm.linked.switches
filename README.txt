@@ -1,3 +1,3 @@
-Linked Switches — Sync two or more on/off devices so they always stay in the same state, no matter which one triggers the change.
+Linked Switches — sync 2 to 10 on/off devices so they always stay in the same state, no matter which one triggers the change.
 
-Perfect for three-way switch setups and scene-style control, with closed Linked Switch groups and Switch Master drivers that sync back on unanimity.
+Switch Master — use 1 master and 2 to 9 slave devices. The master can override the slaves, and the slaves keep their individual control. When all slaves reach unanimity, the master is synced back if it was out of step.

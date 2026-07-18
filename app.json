@@ -232,67 +232,58 @@
           "title": {
             "en": "Master Switch"
           },
-          "icon": "/drivers/switch-master/assets/icon-master.svg"
+          "icon": "/drivers/switch-master/assets/icon.svg"
         },
         "master_button.1": {
           "title": {
             "en": "Master"
           },
-          "icon": "/drivers/switch-master/assets/icon-master.svg"
+          "icon": "/drivers/switch-master/assets/icon-masterswitch.svg"
         },
         "master_button.2": {
           "title": {
             "en": "Slave 1"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.3": {
           "title": {
             "en": "Slave 2"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.4": {
           "title": {
             "en": "Slave 3"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.5": {
           "title": {
             "en": "Slave 4"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.6": {
           "title": {
             "en": "Slave 5"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.7": {
           "title": {
             "en": "Slave 6"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.8": {
           "title": {
             "en": "Slave 7"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.9": {
           "title": {
             "en": "Slave 8"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         },
         "master_button.10": {
           "title": {
             "en": "Slave 9"
-          },
-          "icon": "/drivers/switch-master/assets/icon.svg"
+          }
         }
       },
       "ui": {
@@ -359,63 +350,63 @@
             ]
           },
           {
-            "id": "linked_switch.1",
+            "id": "subdevice_switch.1",
             "capabilities": [
-              "linked_switch.1"
+              "subdevice_switch.1"
             ]
           },
           {
-            "id": "linked_switch.2",
+            "id": "subdevice_switch.2",
             "capabilities": [
-              "linked_switch.2"
+              "subdevice_switch.2"
             ]
           },
           {
-            "id": "linked_switch.3",
+            "id": "subdevice_switch.3",
             "capabilities": [
-              "linked_switch.3"
+              "subdevice_switch.3"
             ]
           },
           {
-            "id": "linked_switch.4",
+            "id": "subdevice_switch.4",
             "capabilities": [
-              "linked_switch.4"
+              "subdevice_switch.4"
             ]
           },
           {
-            "id": "linked_switch.5",
+            "id": "subdevice_switch.5",
             "capabilities": [
-              "linked_switch.5"
+              "subdevice_switch.5"
             ]
           },
           {
-            "id": "linked_switch.6",
+            "id": "subdevice_switch.6",
             "capabilities": [
-              "linked_switch.6"
+              "subdevice_switch.6"
             ]
           },
           {
-            "id": "linked_switch.7",
+            "id": "subdevice_switch.7",
             "capabilities": [
-              "linked_switch.7"
+              "subdevice_switch.7"
             ]
           },
           {
-            "id": "linked_switch.8",
+            "id": "subdevice_switch.8",
             "capabilities": [
-              "linked_switch.8"
+              "subdevice_switch.8"
             ]
           },
           {
-            "id": "linked_switch.9",
+            "id": "subdevice_switch.9",
             "capabilities": [
-              "linked_switch.9"
+              "subdevice_switch.9"
             ]
           },
           {
-            "id": "linked_switch.10",
+            "id": "subdevice_switch.10",
             "capabilities": [
-              "linked_switch.10"
+              "subdevice_switch.10"
             ]
           }
         ]
@@ -439,14 +430,6 @@
             "en": "Ignore echoes after sending a command."
           },
           "value": 2000
-        },
-        {
-          "id": "debug",
-          "type": "checkbox",
-          "label": {
-            "en": "Enable debug logging"
-          },
-          "value": false
         }
       ],
       "pair": [
@@ -588,63 +571,63 @@
             ]
           },
           {
-            "id": "linked_switch.1",
+            "id": "subdevice_switch.1",
             "capabilities": [
-              "linked_switch.1"
+              "subdevice_switch.1"
             ]
           },
           {
-            "id": "linked_switch.2",
+            "id": "subdevice_switch.2",
             "capabilities": [
-              "linked_switch.2"
+              "subdevice_switch.2"
             ]
           },
           {
-            "id": "linked_switch.3",
+            "id": "subdevice_switch.3",
             "capabilities": [
-              "linked_switch.3"
+              "subdevice_switch.3"
             ]
           },
           {
-            "id": "linked_switch.4",
+            "id": "subdevice_switch.4",
             "capabilities": [
-              "linked_switch.4"
+              "subdevice_switch.4"
             ]
           },
           {
-            "id": "linked_switch.5",
+            "id": "subdevice_switch.5",
             "capabilities": [
-              "linked_switch.5"
+              "subdevice_switch.5"
             ]
           },
           {
-            "id": "linked_switch.6",
+            "id": "subdevice_switch.6",
             "capabilities": [
-              "linked_switch.6"
+              "subdevice_switch.6"
             ]
           },
           {
-            "id": "linked_switch.7",
+            "id": "subdevice_switch.7",
             "capabilities": [
-              "linked_switch.7"
+              "subdevice_switch.7"
             ]
           },
           {
-            "id": "linked_switch.8",
+            "id": "subdevice_switch.8",
             "capabilities": [
-              "linked_switch.8"
+              "subdevice_switch.8"
             ]
           },
           {
-            "id": "linked_switch.9",
+            "id": "subdevice_switch.9",
             "capabilities": [
-              "linked_switch.9"
+              "subdevice_switch.9"
             ]
           },
           {
-            "id": "linked_switch.10",
+            "id": "subdevice_switch.10",
             "capabilities": [
-              "linked_switch.10"
+              "subdevice_switch.10"
             ]
           }
         ]
@@ -795,7 +778,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "./assets/icon-master.svg",
+      "icon": "./assets/icon-subdevice.svg",
       "insights": false
     },
     "master_button": {
@@ -807,6 +790,28 @@
       "setable": true,
       "uiComponent": "button",
       "icon": "./assets/icon-power.svg",
+      "insights": false
+    },
+    "master_switch": {
+      "type": "boolean",
+      "title": {
+        "en": "Master Switch"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "button",
+      "icon": "./assets/icon-masterswitch.svg",
+      "insights": false
+    },
+    "subdevice_switch": {
+      "type": "string",
+      "title": {
+        "en": "Subdevice Switch"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "./assets/icon-subdevice.svg",
       "insights": false
     }
   }
