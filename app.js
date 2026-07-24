@@ -149,7 +149,8 @@ module.exports = class SwitchSyncApp extends Homey.App {
             ? `${device.name} (${state}; ${device.errorMessage})`
             : `${device.name} (${state})`;
         });
-      return `[Sync failed] ${report.group}: ${report.trigger} -> ${target}; ${failed.join(', ')}`;
+      const note = report.note ? ` (${report.note})` : '';
+      return `[Sync failed] ${report.group}: ${report.trigger} -> ${target}; ${failed.join(', ')}${note}`;
     }
 
     const recovered = report.devices.filter(device => device.recovered);

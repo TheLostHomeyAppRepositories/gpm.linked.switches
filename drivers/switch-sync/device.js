@@ -45,6 +45,9 @@ class SwitchSyncDevice extends Device {
     // Echo suppression: deviceId → { value, timer }
     this._suppress = new Map();
 
+    // Last time a listener reported a value for a device
+    this._lastListenerUpdate = new Map();
+
     // Devices offline during propagation: deviceId → targetValue
     this._pendingOffline = new Map();
 
@@ -61,6 +64,10 @@ class SwitchSyncDevice extends Device {
     // Dedup the health-check log so a stuck device logs once (opened) and once (resolved),
     // not one identical entry every cycle.
     this._activeDesyncs = new Map();
+
+    // Cooldown for on-demand re-subscription defense (ms)
+    this._resubscribeCooldown = 60 * 1000;
+    this._lastResubscribeAt = 0;
 
     // Clickable per-device controls.
     this._registeredButtonCaps = new Set();
@@ -169,6 +176,7 @@ class SwitchSyncDevice extends Device {
         this._deviceNames.set(deviceId, name);
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
+          this._lastListenerUpdate.set(deviceId, Date.now());
           this._debouncedCallback(deviceId, value, debouncedValue => {
             this._updateButtonValue(deviceId);
             this._updateSubCapStatus(deviceId);
@@ -663,6 +671,20 @@ class SwitchSyncDevice extends Device {
       }
     }
 
+    const deviceIds = this.getStoreValue('deviceIds') || [];
+
+    // Defense: if a known group member has no active listener, re-subscribe.
+    // This can happen when a device endpoint silently loses its capability instance.
+    // Cooldown prevents excessive re-subscriptions on flaky networks.
+    const canResubscribe = now - this._lastResubscribeAt > this._resubscribeCooldown;
+    const missingListeners = deviceIds.filter(id => !this._listeners.has(id));
+    if (missingListeners.length > 0 && canResubscribe) {
+      this._lastResubscribeAt = now;
+      this.error(`[${this.getName()}] Re-subscribing ${missingListeners.length} missing listener(s): ${missingListeners.map(id => this._deviceNames.get(id) || id).join(', ')}`);
+      await this.reloadConfiguration();
+      return;
+    }
+
     const virtualValue = this.getCapabilityValue('onoff');
     const desynced = [];
     const desyncedIds = new Set();
@@ -727,6 +749,27 @@ class SwitchSyncDevice extends Device {
         this._activeDesyncs.set(d.deviceId, { expected: d.expected, actual: d.actual, startedAt: now, lastSeenAt: now, repeatCount: 0 });
         newDesyncs.push(d);
       }
+    }
+
+    // Defense: on-demand re-subscription when a new desync is detected.
+    // A silent listener failure often shows up as a desync, so try to heal
+    // the subscription before declaring a hardware failure. Cooldown prevents
+    // repeated re-subscriptions for a single underlying problem.
+    if (newDesyncs.length > 0 && canResubscribe) {
+      this._lastResubscribeAt = now;
+      this.error(`[${this.getName()}] Re-subscribing due to desync: ${newDesyncs.map(d => d.name).join(', ')}`);
+      this.homey.app.addSyncReport({
+        timestamp: new Date().toISOString(),
+        group:     this.getName(),
+        trigger:   this.homey.__('sync.health_check'),
+        value:     virtualValue,
+        devices:   newDesyncs.map(d => ({ name: d.name, synced: false, expected: d.expected, actual: d.actual })),
+        hasError:  true,
+        important: true,
+        note:      'Automatic re-subscription attempted',
+      });
+      await this.reloadConfiguration();
+      return;
     }
 
     if (newDesyncs.length > 0) {
@@ -821,6 +864,7 @@ class SwitchSyncDevice extends Device {
 
     for (const { timer } of this._suppress.values()) this.homey.clearTimeout(timer);
     this._suppress.clear();
+    this._lastListenerUpdate.clear();
 
     for (const timer of this._callbackTimers.values()) this.homey.clearTimeout(timer);
     this._callbackTimers.clear();
@@ -828,7 +872,6 @@ class SwitchSyncDevice extends Device {
     this._pendingOffline.clear();
     this._expectedStates.clear();
     this._notifiedDesyncs.clear();
-    this._healCooldowns.clear();
     this._activeDesyncs.clear();
   }
 
