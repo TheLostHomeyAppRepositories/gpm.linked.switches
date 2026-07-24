@@ -5,7 +5,7 @@ const { HomeyAPI } = require('homey-api');
 
 // Set to true during development to get extra debug logs.
 // Change back to false before building for production.
-const DEBUG = true;
+const DEBUG = false;
 
 module.exports = class SwitchSyncApp extends Homey.App {
 
