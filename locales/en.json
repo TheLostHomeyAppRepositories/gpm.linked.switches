@@ -10,7 +10,12 @@
     "err_min2": "Please select at least 2 devices.",
     "device": "device",
     "devices": "devices",
-    "selected": "selected"
+    "selected": "selected",
+    "primary_label": "Primary",
+    "primary_short": "Pri",
+    "primary_hint": "Optional: select the device connected directly to the light/outlet. It will be controlled first.",
+    "primary_selected": "Primary selected",
+    "no_primary": "No primary selected"
   },
   "pair": {
     "title": "Create Switch Sync Group",
@@ -45,7 +50,8 @@
     "save": "Save",
     "saved": "Saved ✓",
     "err_save": "Error saving settings.",
-    "err_suppress_range": "Suppress window must be 500–10000 ms."
+    "err_suppress_range": "Suppress window must be 500–10000 ms.",
+    "err_primary_not_selected": "Primary device must be one of the selected devices."
   },
   "error": {
     "missing_devices": "linked device(s) no longer found. Please repair this group.",
@@ -59,35 +65,43 @@
     "empty": "No desync events recorded.",
     "expected": "Expected",
     "actual": "Actual",
-    "filter_all": "All",
-    "filter_errors": "Errors",
-    "log_mode_label": "Log mode:",
     "show_status_label": "Show subdevice status on Linked Switch cards:",
-    "show_master_status_label": "Show subdevice status on Switch Master cards:",
-    "log_mode_errors": "Errors only",
-    "log_mode_full": "Full sync log",
-    "log_title_full": "Sync Log"
+    "show_master_status_label": "Show subdevice status on Switch Master cards:"
+  },
+  "sync": {
+    "virtual_switch": "Virtual Switch",
+    "health_check": "Health Check",
+    "notification_excerpt": "Switch Sync \"{group}\": {devices}"
   },
   "master_wizard": {
-    "master_name": "Master Name",
+    "master_name": "Virtual device name",
     "devices_to_control": "Switches to Control",
     "hint_2_9": "Select 2 to 9 switches with ON/OFF capability.",
     "err_min2": "Please select at least 2 switches.",
     "err_max9": "Please select no more than 9 switches.",
     "err_device_conflict": "One or more devices are already used by: \"{names}\". Use Repair on that group to edit it, or delete it first.",
     "virtual_name": "Virtual Device Name",
-    "master": "Master",
-    "slave": "Slave",
-    "master_selected": "Master selected",
-    "no_master": "No master selected",
-    "hint_master_slaves": "Choose one physical master switch and 2 to 9 slave switches.",
-    "err_master_required": "Please choose one master switch."
+    "master_device": "Primary switch",
+    "master_placeholder": "Select a primary switch",
+    "master_hint": "Optional. Choose the physical switch connected directly to the light or outlet to control it first. Leave unset if all switches are indirect (e.g. Hue lamps controlled via wall switches).",
+    "selected_master": "Selected primary",
+    "change_master": "Change primary",
+    "slave_devices": "Controlled switches",
+    "slave_hint": "Choose 2 to 9 switches to control.",
+    "master": "Primary",
+    "slave": "Controlled",
+    "master_short": "Pri",
+    "slave_short": "Ctl",
+    "master_selected": "Primary selected",
+    "no_master": "No primary selected",
+    "hint_master_slaves": "Choose one physical primary switch and 2 to 9 controlled switches.",
+    "err_master_required": "Please choose one primary switch."
   },
   "master_pair": {
     "title": "Create Switch Master",
     "name_placeholder": "e.g. Suite Scene",
     "btn_create": "Create Switch Master",
-    "err_name": "Please enter a master name.",
+    "err_name": "Please enter a device name.",
     "err_create": "Error creating switch master."
   },
   "master_repair": {

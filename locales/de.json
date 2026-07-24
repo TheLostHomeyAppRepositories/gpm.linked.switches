@@ -10,7 +10,12 @@
     "err_min2": "Bitte mindestens 2 Geräte auswählen.",
     "device": "Gerät",
     "devices": "Geräte",
-    "selected": "ausgewählt"
+    "selected": "ausgewählt",
+    "primary_label": "Primär",
+    "primary_short": "Pri",
+    "primary_hint": "Optional. Wähle das Gerät, das direkt mit der Lampe oder Steckdose verbunden ist. Es wird zuerst gesteuert.",
+    "primary_selected": "Primär ausgewählt",
+    "no_primary": "Kein Primär ausgewählt"
   },
   "pair": {
     "title": "Schaltergruppe erstellen",
@@ -45,7 +50,8 @@
     "save": "Speichern",
     "saved": "Gespeichert ✓",
     "err_save": "Fehler beim Speichern der Einstellungen.",
-    "err_suppress_range": "Unterdrückungsfenster muss 500–10000 ms sein."
+    "err_suppress_range": "Unterdrückungsfenster muss 500–10000 ms sein.",
+    "err_primary_not_selected": "Das Primärgerät muss eines der ausgewählten Geräte sein."
   },
   "error": {
     "missing_devices": "verknüpfte(s) Gerät(e) nicht mehr gefunden. Bitte diese Gruppe reparieren.",
@@ -59,35 +65,43 @@
     "empty": "Keine Desynchronisierungsereignisse aufgezeichnet.",
     "expected": "Erwartet",
     "actual": "Tatsächlich",
-    "filter_all": "Alle",
-    "filter_errors": "Fehler",
-    "log_mode_label": "Log-Modus:",
     "show_status_label": "Subgeräte-Status auf Linked Switch-Karten anzeigen:",
-    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:",
-    "log_mode_errors": "Nur Fehler",
-    "log_mode_full": "Vollständiges Sync-Log",
-    "log_title_full": "Sync-Log"
+    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:"
+  },
+  "sync": {
+    "virtual_switch": "Virtueller Schalter",
+    "health_check": "Gesundheitscheck",
+    "notification_excerpt": "Verknüpfte Schalter \"{group}\": {devices}"
   },
   "master_wizard": {
-    "master_name": "Master-Name",
+    "master_name": "Name des virtuellen Geräts",
     "devices_to_control": "Zu steuernde Schalter",
     "hint_2_9": "Wähle 2 bis 9 Schalter mit ON/OFF-Funktion.",
     "err_min2": "Bitte mindestens 2 Schalter auswählen.",
     "err_max9": "Bitte nicht mehr als 9 Schalter auswählen.",
     "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparieren für diese Gruppe oder lösche sie zuerst.",
     "virtual_name": "Name des virtuellen Geräts",
-    "master": "Master",
-    "slave": "Slave",
-    "master_selected": "Master ausgewählt",
-    "no_master": "Kein Master ausgewählt",
-    "hint_master_slaves": "Wähle einen physischen Master-Schalter und 2 bis 9 Slave-Schalter.",
-    "err_master_required": "Bitte einen Master-Schalter auswählen."
+    "master_device": "Primärschalter",
+    "master_placeholder": "Primärschalter auswählen",
+    "master_hint": "Optional. Wähle den physischen Schalter, der direkt mit der Lampe oder Steckdose verbunden ist, um ihn zuerst zu steuern. Leer lassen, wenn alle Schalter indirekt sind (z. B. Hue-Lampen über Wandschalter).",
+    "selected_master": "Ausgewählter Primärschalter",
+    "change_master": "Primärschalter ändern",
+    "slave_devices": "Gesteuerte Schalter",
+    "slave_hint": "Wähle 2 bis 9 Schalter zum Steuern aus.",
+    "master": "Primär",
+    "slave": "Gesteuert",
+    "master_short": "Pri",
+    "slave_short": "Ctl",
+    "master_selected": "Primärschalter ausgewählt",
+    "no_master": "Kein Primärschalter ausgewählt",
+    "hint_master_slaves": "Wähle einen physischen Primärschalter und 2 bis 9 gesteuerte Schalter.",
+    "err_master_required": "Bitte einen Primärschalter auswählen."
   },
   "master_pair": {
     "title": "Switch Master erstellen",
     "name_placeholder": "z. B. Suite-Szene",
     "btn_create": "Switch Master erstellen",
-    "err_name": "Bitte einen Master-Namen eingeben.",
+    "err_name": "Bitte einen Gerätenamen eingeben.",
     "err_create": "Fehler beim Erstellen des Switch Master."
   },
   "master_repair": {

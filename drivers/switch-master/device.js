@@ -5,10 +5,81 @@ const { Device } = require('homey');
 const MIN_SLAVES = 2;
 const MAX_SLAVES = 9;
 
+// Debounce rapid duplicate capability callbacks (ms)
+const CALLBACK_DEBOUNCE_MS = 80;
+
+// Delay before reporting a failed write, giving late echoes a chance to arrive (ms)
+const ERROR_REPORT_DELAY_MS = 2500;
+
+// Small stagger between slave writes to avoid Zigbee network congestion.
+// Must stay imperceptible to the user: 30ms per device keeps the whole
+// group under ~250ms even with 9 slaves.
+const SLAVE_STAGGER_MS = 30;
+
 class SwitchMasterDevice extends Device {
 
+  // Development debug logs: use the global app helpers so all drivers share
+  // the same toggle (`.debug` file or GPM_LINKED_SWITCHES_DEBUG=true).
+  _debug(tag, payload) {
+    if (this.homey && this.homey.app && typeof this.homey.app.debugLog === 'function') {
+      this.homey.app.debugLog(tag, { group: this.getName(), ...payload });
+    }
+  }
+
+  // Debounce rapid duplicate capability callbacks. If the same device fires
+  // the same value within CALLBACK_DEBOUNCE_MS, only the last one is processed.
+  // If the value changes, process immediately.
+  _debouncedCallback(deviceId, value, handler) {
+    const last = this._lastCallbackValues.get(deviceId);
+    if (last !== undefined && last !== value) {
+      this._flushCallback(deviceId, value, handler);
+      return;
+    }
+    this._lastCallbackValues.set(deviceId, value);
+
+    const existing = this._callbackTimers.get(deviceId);
+    if (existing) this.homey.clearTimeout(existing);
+
+    const timer = this.homey.setTimeout(() => {
+      this._callbackTimers.delete(deviceId);
+      this._flushCallback(deviceId, value, handler);
+    }, CALLBACK_DEBOUNCE_MS);
+
+    this._callbackTimers.set(deviceId, timer);
+  }
+
+  _flushCallback(deviceId, value, handler) {
+    this._callbackTimers.delete(deviceId);
+    this._lastCallbackValues.set(deviceId, value);
+    handler(value);
+  }
+
+  // Cancel a delayed error report if the device state has just been confirmed.
+  _cancelPendingErrorReport(deviceId, value) {
+    const pending = this._pendingErrorReports.get(deviceId);
+    if (!pending) return;
+    if (pending.expected === value) {
+      this.homey.clearTimeout(pending.timer);
+      this._pendingErrorReports.delete(deviceId);
+      this._debug('error report cancelled', { deviceId, value, device: pending.name });
+    }
+  }
+
+  // Schedule an error report with a short delay. Late echoes often arrive
+  // within a few seconds after the Homey API reports a timeout.
+  _scheduleErrorReport(role, name, deviceId, expected, errorMessage) {
+    this._cancelPendingErrorReport(deviceId, expected);
+
+    const timer = this.homey.setTimeout(() => {
+      this._pendingErrorReports.delete(deviceId);
+      this._reportWriteError(role, name, expected, errorMessage);
+    }, ERROR_REPORT_DELAY_MS);
+
+    this._pendingErrorReports.set(deviceId, { timer, expected, role, name, errorMessage });
+  }
+
   async onInit() {
-    this.log(`[${this.getName()}] Switch Master initialized`);
+    this._debug('init', { message: 'device initialized' });
 
     this._master = null;
     this._slaves = new Map();
@@ -18,12 +89,19 @@ class SwitchMasterDevice extends Device {
     this._settingVirtualMaster = false;
     this._syncingMasterFromUnanimity = false;
 
+    // Callback debounce: deviceId -> timer
+    this._callbackTimers = new Map();
+    // Delayed error reports: deviceId -> { timer, expected, role, name }
+    this._pendingErrorReports = new Map();
+    // Last seen value per device (for debounce change detection)
+    this._lastCallbackValues = new Map();
+
     this.registerCapabilityListener('onoff', this._onVirtualMasterChanged.bind(this));
     await this._subscribeToDevices();
   }
 
   async reloadConfiguration() {
-    this.log(`[${this.getName()}] Reloading switch master configuration...`);
+    this._debug('reload', { message: 'reloading configuration' });
     await this._subscribeToDevices();
   }
 
@@ -32,6 +110,7 @@ class SwitchMasterDevice extends Device {
   }
 
   async _subscribeToDevices() {
+    this._debug('subscribe', { master: this.getStoreValue('masterDeviceId') || 'none', slaveCount: (this.getStoreValue('deviceIds') || []).length });
     if (this._master && this._master.onoffInstance) {
       try { this._master.onoffInstance.destroy(); } catch (_) {}
     }
@@ -55,11 +134,14 @@ class SwitchMasterDevice extends Device {
         const name = device.name;
         this._deviceNames.set(masterDeviceId, name);
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
-          this._onPhysicalMasterChanged(value)
-            .catch(err => this.error(`[${this.getName()}] Physical master update error from "${name}": ${err.message}`));
+          this._debug('callback in', { role: 'master', device: name, value, debounced: true });
+          this._debouncedCallback(masterDeviceId, value, debouncedValue => {
+            this._onPhysicalMasterChanged(debouncedValue)
+              .catch(err => this.error(`[${this.getName()}] Physical master update error from "${name}": ${err.message}`));
+          });
         });
         this._master = { deviceId: masterDeviceId, device, onoffInstance };
-        this.log(`[${this.getName()}] Master: "${name}"`);
+        this._debug('subscribe', { role: 'master', device: name, deviceId: masterDeviceId });
       } catch (err) {
         this.error(`[${this.getName()}] Could not subscribe master "${masterDeviceId}": ${err.message}`);
         missingCount++;
@@ -73,12 +155,15 @@ class SwitchMasterDevice extends Device {
         this._deviceNames.set(deviceId, name);
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
-          this._onSlaveChanged(deviceId, name, value)
-            .catch(err => this.error(`[${this.getName()}] Slave update error from "${name}": ${err.message}`));
+          this._debug('callback in', { role: 'slave', device: name, deviceId, value, debounced: true });
+          this._debouncedCallback(deviceId, value, debouncedValue => {
+            this._onSlaveChanged(deviceId, name, debouncedValue)
+              .catch(err => this.error(`[${this.getName()}] Slave update error from "${name}": ${err.message}`));
+          });
         });
 
         this._slaves.set(deviceId, { device, onoffInstance });
-        this.log(`[${this.getName()}] Slave: "${name}"`);
+        this._debug('subscribe', { role: 'slave', device: name, deviceId });
       } catch (err) {
         this.error(`[${this.getName()}] Could not subscribe slave "${deviceId}": ${err.message}`);
         missingCount++;
@@ -178,6 +263,19 @@ class SwitchMasterDevice extends Device {
     return `subdevice_switch.${index + 1}`;
   }
 
+  async _setRemoteOnOff(device, value, label) {
+    try {
+      this._debug('write start', { device: label, value });
+      await device.setCapabilityValue({ capabilityId: 'onoff', value });
+      this._debug('write ok', { device: label, value });
+      return { ok: true };
+    } catch (err) {
+      this.homey.app.debugError('write failed', { device: label, value, error: err.message });
+      this.error(`[${this.getName()}] Failed to set ${label}: ${err.message}`);
+      return { ok: false, errorMessage: err.message };
+    }
+  }
+
   async _renderStatusCapability(index, deviceId) {
     const capId = this._statusCapId(index);
     if (!this.hasCapability(capId)) return;
@@ -192,16 +290,20 @@ class SwitchMasterDevice extends Device {
       ...(isMaster ? { icon } : {}),
     });
     await this.setCapabilityValue(capId, this._statusCapText(deviceId));
+    this._debug('status render', { capId, deviceId, status: this._statusCapText(deviceId) });
   }
 
-  _statusCapText(deviceId) {
+  _statusCapText(deviceId, value) {
+    if (typeof value === 'boolean') {
+      return this._statusText(value);
+    }
     if (this._master && this._master.deviceId === deviceId) {
       return this._statusText(this._getPhysicalMasterValue());
     }
     return this._statusText(this._getSlaveValue(deviceId));
   }
 
-  async _updateStatusCapability(deviceId) {
+  async _updateStatusCapability(deviceId, value) {
     if (!this._shouldShowDeviceStatus()) return;
 
     const ids = this._master ? [this._master.deviceId, ...(this.getStoreValue('deviceIds') || [])] : (this.getStoreValue('deviceIds') || []);
@@ -210,11 +312,25 @@ class SwitchMasterDevice extends Device {
 
     const capId = this._statusCapId(index);
     if (!this.hasCapability(capId)) return;
-    await this.setCapabilityValue(capId, this._statusCapText(deviceId)).catch(() => {});
+    await this.setCapabilityValue(capId, this._statusCapText(deviceId, value)).catch(() => {});
+    this._debug('status update', { capId, deviceId, status: this._statusCapText(deviceId, value) });
   }
 
   _controlCapId(index) {
     return `master_button.${index + 1}`;
+  }
+
+  // Report a failed write to the unified app error log.
+  _reportWriteError(role, name, expected, errorMessage) {
+    if (!this.homey || !this.homey.app || typeof this.homey.app.addSyncReport !== 'function') return;
+    this.homey.app.addSyncReport({
+      timestamp: new Date().toISOString(),
+      group: this.getName(),
+      trigger: role === 'master' ? 'Master command' : 'Slave command',
+      value: expected,
+      devices: [{ name, synced: false, expected, actual: null, errorMessage }],
+      hasError: true,
+    });
   }
 
   _registerControlCapability(capId) {
@@ -278,28 +394,35 @@ class SwitchMasterDevice extends Device {
 
   async _onVirtualMasterChanged(value) {
     if (this._settingVirtualMaster) return;
-    this.log(`[${this.getName()}] Virtual master -> ${value ? 'ON' : 'OFF'}`);
+    this._debug('virtual master changed', { value });
     await this._setVirtualMasterValue(value);
     if (this._master) await this._setControlCapValue(this._controlCapId(0), value).catch(() => {});
-    if (this._master) await this._updateStatusCapability(this._master.deviceId).catch(() => {});
     await this._setPhysicalMaster(value, 'virtual master');
     await this._setAllSlaves(value, 'virtual master');
   }
 
   async _onPhysicalMasterChanged(value) {
     const masterName = this._master ? this._master.device.name : 'master';
+    if (this._master) this._cancelPendingErrorReport(this._master.deviceId, value);
     await this._setVirtualMasterValue(value);
     if (this._master) await this._updateControlValue(this._master.deviceId);
-    if (this._master) await this._updateStatusCapability(this._master.deviceId);
+    if (this._master) await this._updateStatusCapability(this._master.deviceId, value);
 
-    if (this._master && this._isSuppressed(this._master.deviceId, value)) return;
+    if (this._master && this._isSuppressed(this._master.deviceId, value)) {
+      this._debug('suppressed', { role: 'master', device: masterName, value });
+      return;
+    }
 
-    this.log(`[${this.getName()}] Physical master "${masterName}" -> ${value ? 'ON' : 'OFF'}`);
+    this._debug('propagate', { role: 'master', device: masterName, value });
     await this._setAllSlaves(value, 'physical master');
   }
 
   async _onSlaveChanged(deviceId, name, value) {
-    if (this._isSuppressed(deviceId, value)) return;
+    this._cancelPendingErrorReport(deviceId, value);
+    if (this._isSuppressed(deviceId, value)) {
+      this._debug('suppressed', { role: 'slave', device: name, deviceId, value });
+      return;
+    }
 
     const index = (this.getStoreValue('deviceIds') || []).indexOf(deviceId);
     if (index !== -1) {
@@ -307,7 +430,7 @@ class SwitchMasterDevice extends Device {
         this.error(`[${this.getName()}] Could not update slave button "${name}": ${err.message}`);
       });
     }
-    await this._updateStatusCapability(deviceId);
+    await this._updateStatusCapability(deviceId, value);
 
     await this._syncMasterFromUnanimity();
   }
@@ -317,11 +440,15 @@ class SwitchMasterDevice extends Device {
 
     const suppressMs = this.getSetting('suppress_ms') || 2000;
     this._suppressDevice(this._master.deviceId, value, suppressMs);
+    this._debug('write start', { role: 'master', source, device: this._master.device.name, value, suppressMs });
 
     try {
-      await this._master.device.setCapabilityValue({ capabilityId: 'onoff', value });
-      this.log(`[${this.getName()}] ${source}: master "${this._master.device.name}" -> ${value ? 'ON' : 'OFF'}`);
+      const result = await this._setRemoteOnOff(this._master.device, value, `master "${this._master.device.name}"`);
+      if (!result.ok) throw new Error(result.errorMessage);
+      this._debug('write ok', { role: 'master', source, device: this._master.device.name, value });
+      await this._updateStatusCapability(this._master.deviceId, value).catch(() => {});
     } catch (err) {
+      this._scheduleErrorReport('master', this._master.device.name, this._master.deviceId, value, err.message);
       this.error(`[${this.getName()}] Failed to set master "${this._master.device.name}": ${err.message}`);
     }
   }
@@ -330,32 +457,39 @@ class SwitchMasterDevice extends Device {
     const slaveIds = this.getStoreValue('deviceIds') || [];
     const suppressMs = this.getSetting('suppress_ms') || 2000;
 
-    this.log(`[${this.getName()}] ${source}: setting ${slaveIds.length} slave(s) to ${value ? 'ON' : 'OFF'}`);
+    this._debug('propagate', { source, value, slaveCount: slaveIds.length, staggerMs: SLAVE_STAGGER_MS });
 
-    const tasks = slaveIds.map(async (deviceId, index) => {
+    for (let index = 0; index < slaveIds.length; index++) {
+      const deviceId = slaveIds[index];
       const entry = this._slaves.get(deviceId);
       if (!entry) {
         this.error(`[${this.getName()}] ${source}: slave ${deviceId} is not subscribed`);
-        return;
+        continue;
       }
       if (!entry.device.available) {
         this.error(`[${this.getName()}] ${source}: slave "${entry.device.name}" is unavailable`);
-        return;
+        continue;
+      }
+
+      const staggerMs = index * SLAVE_STAGGER_MS;
+      if (staggerMs > 0) {
+        this._debug('stagger wait', { source, device: entry.device.name, staggerMs });
+        await new Promise(resolve => this.homey.setTimeout(resolve, staggerMs));
       }
 
       this._suppressDevice(deviceId, value, suppressMs);
       await this._setControlCapValue(this._controlCapId(index + 1), value).catch(() => {});
-      await this._updateStatusCapability(deviceId).catch(() => {});
 
       try {
-        await entry.device.setCapabilityValue({ capabilityId: 'onoff', value });
-        this.log(`[${this.getName()}] ${source}: slave "${entry.device.name}" -> ${value ? 'ON' : 'OFF'}`);
+        const result = await this._setRemoteOnOff(entry.device, value, `slave "${entry.device.name}"`);
+        if (!result.ok) throw new Error(result.errorMessage);
+        this._debug('write ok', { role: 'slave', source, device: entry.device.name, value });
+        await this._updateStatusCapability(deviceId, value).catch(() => {});
       } catch (err) {
+        this._scheduleErrorReport('slave', entry.device.name, deviceId, value, err.message);
         this.error(`[${this.getName()}] Failed to set slave "${entry.device.name}": ${err.message}`);
       }
-    });
-
-    await Promise.allSettled(tasks);
+    }
   }
 
   async _setOneSlave(deviceId, value, source) {
@@ -363,15 +497,17 @@ class SwitchMasterDevice extends Device {
     if (!entry || !entry.device.available) return;
 
     const suppressMs = this.getSetting('suppress_ms') || 2000;
-    this.log(`[${this.getName()}] ${source}: slave "${entry.device.name}" -> ${value ? 'ON' : 'OFF'}`);
+    this._debug('write start', { role: 'slave', source, device: entry.device.name, value, suppressMs });
 
     this._suppressDevice(deviceId, value, suppressMs);
     const index = (this.getStoreValue('deviceIds') || []).indexOf(deviceId);
     if (index !== -1) await this._setControlCapValue(this._controlCapId(index + 1), value).catch(() => {});
-    await this._updateStatusCapability(deviceId).catch(() => {});
     try {
-      await entry.device.setCapabilityValue({ capabilityId: 'onoff', value });
+      const result = await this._setRemoteOnOff(entry.device, value, `slave "${entry.device.name}"`);
+      if (!result.ok) throw new Error(result.errorMessage);
+      await this._updateStatusCapability(deviceId, value).catch(() => {});
     } catch (err) {
+      this._scheduleErrorReport('slave', entry.device.name, deviceId, value, err.message);
       this.error(`[${this.getName()}] Failed to set slave "${entry.device.name}": ${err.message}`);
     }
 
@@ -396,11 +532,10 @@ class SwitchMasterDevice extends Device {
 
     this._syncingMasterFromUnanimity = true;
     try {
-      this.log(`[${this.getName()}] Slave unanimity -> master ${target ? 'ON' : 'OFF'}`);
+      this._debug('unanimity', { slaveCount: values.length, target });
       await this._setVirtualMasterValue(target);
       if (this._master) await this._setControlCapValue(this._controlCapId(0), target).catch(() => {});
       await this._setPhysicalMaster(target, 'slave unanimity');
-      if (this._master) await this._updateStatusCapability(this._master.deviceId);
     } finally {
       this._syncingMasterFromUnanimity = false;
     }
@@ -440,6 +575,12 @@ class SwitchMasterDevice extends Device {
       try { onoffInstance.destroy(); } catch (_) {}
     }
     for (const { timer } of this._suppress.values()) {
+      if (timer) this.homey.clearTimeout(timer);
+    }
+    for (const timer of this._callbackTimers.values()) {
+      if (timer) this.homey.clearTimeout(timer);
+    }
+    for (const { timer } of this._pendingErrorReports.values()) {
       if (timer) this.homey.clearTimeout(timer);
     }
   }

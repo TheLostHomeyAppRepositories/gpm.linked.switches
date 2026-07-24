@@ -4,7 +4,9 @@ Linked Switches sync 2 to 10 ON/OFF devices so they always stay in the same stat
 
 Perfect for three-way switch setups where multiple physical switches control the same light or group of lights. When any switch in the group is toggled, all others follow instantly.
 
-For scene-style control, Switch Master uses 1 master and 2 to 9 subdevices. The master can override the slaves, but the slaves keep their individual control. When all slaves reach unanimity, the master syncs back if it was out of step.
+For setups where one switch is wired directly to the load while the others are just helpers, you can optionally mark one device as **Primary**. The Primary device is controlled first; the remaining devices follow with a tiny stagger to keep your Zigbee network calm.
+
+For scene-style control, **Switch Master** uses 1 master and 2 to 9 subdevices. The master can override the slaves, but the slaves keep their individual control. When all slaves reach unanimity, the master syncs back if it was out of step.
 
 ---
 
@@ -12,7 +14,7 @@ For scene-style control, Switch Master uses 1 master and 2 to 9 subdevices. The 
 
 This app ships with two different drivers:
 
-- **Linked Switch Group** (`switch-sync`) keeps 2 to 10 devices in a closed sync group.
+- **Linked Switch Group** (`switch-sync`) keeps 2 to 10 devices in a closed sync group, with an optional Primary device.
 - **Switch Master** (`switch-master`) uses 1 master and 2 to 9 slaves for scene-style control.
 
 They solve different problems:
@@ -33,10 +35,11 @@ The UI also follows that split:
 2. Select **Linked Switches** from the list of apps
 3. Choose **Linked Switch Group**
 4. Select the devices you want to synchronize (minimum 2)
-5. Give the group a name (e.g. "Staircase", "Guest Room")
-6. Tap **Create** — the virtual switch appears in your device list
+5. Optionally mark one device as **Primary** — usually the switch wired directly to the light or outlet
+6. Give the group a name (e.g. "Staircase", "Guest Room")
+7. Tap **Create** — the virtual switch appears in your device list
 
-From that point on, toggling any device in the group (physically or via Homey) will propagate to all others automatically.
+From that point on, toggling any device in the group (physically or via Homey) will propagate to all others automatically, with the Primary device acting first.
 
 ---
 
@@ -50,6 +53,8 @@ The app supports two association models, and each one has its own rule set:
 - A physical device can belong to only one Linked Switch group.
 - You cannot build a chain of Linked Switch groups.
 - If you want to extend a Linked Switch group, use **Repair** on that same group and add the new device there.
+- You can optionally mark **one** device as Primary. It is controlled first; the rest follow with a small stagger.
+- Leave Primary unset if all devices are indirect (e.g. Hue lamps controlled through wall switches).
 - The `show_device_status` app setting controls whether Linked Switch cards show live status or only the device names.
 
 ### Switch Master groups
@@ -59,7 +64,7 @@ The app supports two association models, and each one has its own rule set:
 - The `master` device cannot belong to a Linked Switch group.
 - A `slave` device can be a member of a Linked Switch group.
 - The `master` follows the slaves only when they all agree on the same state.
-- If a Switch Master includes one device from a Linked Switch group, it should not include another device from that same Linked Switch group in the same Switch Master, because that would be redundant.
+- In practice, that means you can use a Linked Switch group member in the same Switch Master, but only one member from that linked group to avoid redundancy.
 - A Switch Master may trigger a Linked Switch device, and the Linked Switch will still keep its own members in sync.
 - The `show_master_status` app setting controls whether Switch Master cards show live status for each subdevice.
 
@@ -68,14 +73,16 @@ The app supports two association models, and each one has its own rule set:
 - `D-E` is a valid Linked Switch group.
 - `E-F` is not allowed if `D-E` already exists; expand `D-E` through Repair instead.
 - `A -> D -> E` is valid when `A` is a Switch Master and `D-E` is a Linked Switch.
+- `A -> D -> E -> F` is not allowed when `D-E-F` are all members of the same Linked Switch group, because that would duplicate the same linked group inside the same Switch Master.
 - `B` cannot become the master of another Switch Master if `B` is already used as a Switch Master master.
+- In a Linked Switch group `Corredor-lnk` with devices `Corredor`, `Corredor Aux1`, `Corredor Aux2`, you can mark `Corredor` as Primary. When any auxiliary is toggled, `Corredor` is controlled first.
 
 ### What Is Excluded
 
 - No cascaded Linked Switch groups.
 - No shared members between two Linked Switch groups.
 - No second Switch Master using a device that is already a Switch Master master.
-- No Switch Master that contains two devices from the same Linked Switch group.
+- No Switch Master that contains more than one device from the same Linked Switch group.
 - No need to re-pair a device just to expand an existing Linked Switch group: use **Repair** on the group instead.
 
 ## Settings (per group)
@@ -127,7 +134,9 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 ## How sync works
 
 - When any device in the group changes state, all others follow
+- If a Primary device is configured, it is controlled first; remaining devices follow with a small stagger to reduce Zigbee congestion
 - Echo suppression prevents feedback loops (a device confirming its own command)
+- Rapid duplicate callbacks from the same device are debounced before propagating
 - Devices that are offline when a command is sent are queued and synced when they reconnect
 - On startup, all devices in the group are automatically aligned to the same state
 - A health check runs every 30 seconds to detect accumulated drift

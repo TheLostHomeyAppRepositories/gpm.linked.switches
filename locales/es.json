@@ -10,7 +10,12 @@
     "err_min2": "Selecciona al menos 2 dispositivos.",
     "device": "dispositivo",
     "devices": "dispositivos",
-    "selected": "seleccionado(s)"
+    "selected": "seleccionado(s)",
+    "primary_label": "Principal",
+    "primary_short": "Pri",
+    "primary_hint": "Opcional: selecciona el dispositivo conectado directamente a la luz o enchufe. Se controlará primero.",
+    "primary_selected": "Principal seleccionado",
+    "no_primary": "Ningún principal seleccionado"
   },
   "pair": {
     "title": "Crear grupo de interruptores",
@@ -45,7 +50,8 @@
     "save": "Guardar",
     "saved": "Guardado ✓",
     "err_save": "Error al guardar la configuración.",
-    "err_suppress_range": "La ventana de supresión debe ser de 500 a 10000 ms."
+    "err_suppress_range": "La ventana de supresión debe ser de 500 a 10000 ms.",
+    "err_primary_not_selected": "El dispositivo principal debe estar entre los seleccionados."
   },
   "error": {
     "missing_devices": "dispositivo(s) vinculado(s) no encontrado(s). Por favor, repara este grupo.",
@@ -59,35 +65,43 @@
     "empty": "No se han registrado eventos de desincronización.",
     "expected": "Esperado",
     "actual": "Real",
-    "filter_all": "Todo",
-    "filter_errors": "Errores",
-    "log_mode_label": "Modo de registro:",
     "show_status_label": "Mostrar el estado de subdispositivos en las tarjetas Linked Switch:",
-    "show_master_status_label": "Mostrar el estado de subdispositivos en las tarjetas Switch Master:",
-    "log_mode_errors": "Solo errores",
-    "log_mode_full": "Registro completo",
-    "log_title_full": "Registro de sincronización"
+    "show_master_status_label": "Mostrar el estado de subdispositivos en las tarjetas Switch Master:"
+  },
+  "sync": {
+    "virtual_switch": "Interruptor virtual",
+    "health_check": "Verificación de estado",
+    "notification_excerpt": "Interruptores vinculados \"{group}\": {devices}"
   },
   "master_wizard": {
-    "master_name": "Nombre del master",
+    "master_name": "Nombre del dispositivo virtual",
     "devices_to_control": "Interruptores a controlar",
     "hint_2_9": "Selecciona de 2 a 9 interruptores con capacidad ON/OFF.",
     "err_min2": "Selecciona al menos 2 interruptores.",
     "err_max9": "Selecciona como máximo 9 interruptores.",
     "err_device_conflict": "Uno o más dispositivos ya están en uso por: \"{names}\". Usa Reparar en ese grupo para editarlo, o elimínalo primero.",
     "virtual_name": "Nombre del dispositivo virtual",
-    "master": "Master",
-    "slave": "Slave",
-    "master_selected": "Master seleccionado",
-    "no_master": "Sin master seleccionado",
-    "hint_master_slaves": "Elige un interruptor físico master y de 2 a 9 interruptores slave.",
-    "err_master_required": "Elige un interruptor master."
+    "master_device": "Interruptor principal",
+    "master_placeholder": "Selecciona un interruptor principal",
+    "master_hint": "Opcional. Elige el interruptor físico conectado directamente a la luz o enchufe para controlarlo primero. Déjalo sin seleccionar si todos los interruptores son indirectos (p. ej., lámparas Hue controladas por interruptores de pared).",
+    "selected_master": "Principal seleccionado",
+    "change_master": "Cambiar principal",
+    "slave_devices": "Interruptores controlados",
+    "slave_hint": "Elige de 2 a 9 interruptores para controlar.",
+    "master": "Principal",
+    "slave": "Controlado",
+    "master_short": "Pri",
+    "slave_short": "Ctl",
+    "master_selected": "Principal seleccionado",
+    "no_master": "Sin principal seleccionado",
+    "hint_master_slaves": "Elige un interruptor físico principal y de 2 a 9 interruptores controlados.",
+    "err_master_required": "Elige un interruptor principal."
   },
   "master_pair": {
     "title": "Crear Switch Master",
     "name_placeholder": "p. ej. Escena Suite",
     "btn_create": "Crear Switch Master",
-    "err_name": "Introduce un nombre para el master.",
+    "err_name": "Introduce un nombre para el dispositivo.",
     "err_create": "Error al crear el Switch Master."
   },
   "master_repair": {

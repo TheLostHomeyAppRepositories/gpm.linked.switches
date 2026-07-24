@@ -47,25 +47,41 @@
     }
     .device-item {
       display: grid;
-      grid-template-columns: 74px 70px 1fr auto;
+      grid-template-columns: 80px 1fr auto;
       align-items: center;
       gap: 8px;
-      padding: 10px 14px;
+      padding: 8px 12px;
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.1s;
     }
     .device-item:last-child { border-bottom: none; }
     .device-item:hover { background: #f7f7f7; }
     .device-item.selected { background: #e8f0fe; }
-    .choice {
+    .controls {
       display: flex;
       align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: #666;
+      gap: 10px;
+    }
+    .choice {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      line-height: 1;
+      cursor: pointer;
+      gap: 2px;
+    }
+    .choice input {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      accent-color: #007aff;
       cursor: pointer;
     }
-    .choice input { accent-color: #007aff; }
     .device-name { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .device-zone { font-size: 11px; color: #aaa; margin-left: 6px; white-space: nowrap; }
     .hint { font-size: 12px; color: #999; margin-bottom: 8px; }
@@ -103,9 +119,8 @@
   <h2 id="t-title"></h2>
   <p class="subtitle" id="device-count"></p>
 
-  <label class="field-label" id="t-devices-label"></label>
-  <p class="hint" id="t-hint"></p>
-
+  <label class="field-label" id="t-master-label"></label>
+  <p class="hint" id="t-master-hint"></p>
   <div class="filter-row">
     <input type="text" id="filter-text" oninput="applyFilter()" />
     <select id="filter-zone" onchange="applyFilter()">
@@ -117,6 +132,9 @@
     <div id="loading"></div>
   </div>
 
+  <label class="field-label" id="t-slaves-label"></label>
+  <p class="hint" id="t-slaves-hint"></p>
+
   <div id="error-msg"></div>
 
   <button id="btn-save" onclick="saveMaster()" disabled></button>
@@ -125,6 +143,7 @@
     var availableDevices = [];
     var selectedSlaves = {};
     var masterId = null;
+    var filteredSlaveDevices = [];
     var MAX_SLAVES = 9;
 
     var __ = function(k) { try { return Homey.__(k) || k; } catch(e) { return k; } };
@@ -140,8 +159,10 @@
 
     function initTranslations() {
       document.getElementById('t-title').textContent = __('master_repair.title');
-      document.getElementById('t-devices-label').textContent = __('master_wizard.devices_to_control');
-      document.getElementById('t-hint').textContent = __('master_wizard.hint_master_slaves');
+      document.getElementById('t-master-label').textContent = __('master_wizard.master_device');
+      document.getElementById('t-master-hint').textContent = __('master_wizard.master_hint');
+      document.getElementById('t-slaves-label').textContent = __('master_wizard.slave_devices');
+      document.getElementById('t-slaves-hint').textContent = __('master_wizard.slave_hint');
       document.getElementById('t-all-zones').textContent = __('wizard.all_zones');
       document.getElementById('loading').textContent = __('wizard.loading');
       document.getElementById('btn-save').textContent = __('repair.btn_save');
@@ -155,13 +176,7 @@
       document.getElementById('device-count').textContent = masterText + ' · ' + n + ' ' + (n !== 1 ? __('wizard.devices') : __('wizard.device')) + ' ' + __('wizard.selected');
     }
 
-    function showError(msg) {
-      var el = document.getElementById('error-msg');
-      el.textContent = msg;
-      el.style.display = msg ? 'block' : 'none';
-    }
-
-    function buildZoneOptions(devices) {
+    function buildZoneOptions(selectId, devices) {
       var seen = {};
       var zones = [];
       devices.forEach(function(d) {
@@ -172,7 +187,7 @@
       });
       zones.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
-      var select = document.getElementById('filter-zone');
+      var select = document.getElementById(selectId);
       zones.forEach(function(z) {
         var opt = document.createElement('option');
         opt.value = z.id;
@@ -181,14 +196,22 @@
       });
     }
 
+    function showError(msg) {
+      var el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+    }
+
     function applyFilter() {
       var text = document.getElementById('filter-text').value.toLowerCase();
       var zoneId = document.getElementById('filter-zone').value;
 
-      renderDevices(availableDevices.filter(function(d) {
+      filteredSlaveDevices = availableDevices.filter(function(d) {
         return (!text || d.name.toLowerCase().includes(text)) &&
                (!zoneId || d.zoneId === zoneId);
-      }));
+      });
+
+      renderDevices(filteredSlaveDevices);
     }
 
     function renderDevices(devices) {
@@ -204,8 +227,10 @@
         var selected = isMaster || isSlave ? ' selected' : '';
         var zoneBadge = d.zoneName ? '<span class="device-zone">' + escapeHtml(d.zoneName) + '</span>' : '';
         return '<div class="device-item' + selected + '" id="item-' + escapeHtml(d.id) + '">' +
-          '<label class="choice"><input type="radio" name="master" value="' + escapeHtml(d.id) + '"' + (isMaster ? ' checked' : '') + ' onchange="setMaster(this.value)" />' + __('master_wizard.master') + '</label>' +
-          '<label class="choice"><input type="checkbox" value="' + escapeHtml(d.id) + '"' + (isSlave ? ' checked' : '') + (isMaster ? ' disabled' : '') + ' onchange="setSlave(this)" />' + __('master_wizard.slave') + '</label>' +
+          '<div class="controls">' +
+          '<label class="choice" title="' + escapeHtml(__('master_wizard.master')) + '"><input type="radio" name="master" value="' + escapeHtml(d.id) + '"' + (isMaster ? ' checked' : '') + ' onchange="setMaster(this.value)" />' + __('master_wizard.master_short') + '</label>' +
+          '<label class="choice" title="' + escapeHtml(__('master_wizard.slave')) + '"><input type="checkbox" value="' + escapeHtml(d.id) + '"' + (isSlave ? ' checked' : '') + ' onchange="setSlave(this)" />' + __('master_wizard.slave_short') + '</label>' +
+          '</div>' +
           '<span class="device-name">' + escapeHtml(d.name) + '</span>' +
           zoneBadge +
           '</div>';
@@ -214,8 +239,8 @@
     }
 
     function setMaster(id) {
-      masterId = id;
-      delete selectedSlaves[id];
+      masterId = id || null;
+      if (masterId) delete selectedSlaves[masterId];
       showError('');
       updateCount();
       applyFilter();
@@ -266,8 +291,8 @@
       })
       .then(function(devices) {
         availableDevices = devices || [];
-        buildZoneOptions(availableDevices);
-        renderDevices(availableDevices);
+        buildZoneOptions('filter-zone', availableDevices);
+        applyFilter();
         document.getElementById('btn-save').disabled = false;
       })
       .catch(function(err) {

@@ -4,5 +4,5 @@
 /other/
 .DS_Store
 *.zip
-homey_run*.log
-linkswitch-*.log
+*.log
+.debug

@@ -15,10 +15,28 @@ const EXPECTED_STATE_TTL_MS = 5 * 60 * 1000;
 // Discard pending-offline entries older than this (device unlikely to return)
 const PENDING_OFFLINE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+// Small stagger between non-primary writes to avoid Zigbee network congestion.
+const SLAVE_STAGGER_MS = 30;
+
 class SwitchSyncDevice extends Device {
 
+  // Use the global app debug toggle. The per-device setting is kept for compatibility.
+  _isDebugEnabled() {
+    const appDebug = this.homey && this.homey.app && typeof this.homey.app._isDebugEnabled === 'function'
+      ? this.homey.app._isDebugEnabled()
+      : false;
+    return appDebug || this.getSetting('debug') === true || this.getSetting('debug') === 'true';
+  }
+
+  _debug(tag, payload) {
+    if (this._isDebugEnabled()) {
+      if (payload !== undefined) this.log(`[${this.getName()}][debug][${tag}]`, payload);
+      else this.log(`[${this.getName()}][debug][${tag}]`);
+    }
+  }
+
   async onInit() {
-    this.log(`[${this.getName()}] Initialized`);
+    this._debug('init', { message: 'device initialized' });
 
     // deviceId → { device, onoffInstance }
     this._listeners   = new Map();
@@ -46,6 +64,13 @@ class SwitchSyncDevice extends Device {
 
     // Clickable per-device controls.
     this._registeredButtonCaps = new Set();
+
+    // Callback debounce: deviceId → timer
+    this._callbackTimers = new Map();
+    this._lastCallbackValues = new Map();
+
+    // Primary device: controlled first, others follow with stagger
+    this._primaryDeviceId = this.getStoreValue('primaryDeviceId') || null;
 
     // Flow trigger fired when a device fails to reach the expected state
     this._desyncTriggerCard = this.homey.flow.getDeviceTriggerCard('group_desynced');
@@ -77,12 +102,40 @@ class SwitchSyncDevice extends Device {
   }
 
   async reloadConfiguration() {
-    this.log(`[${this.getName()}] Reloading configuration...`);
+    this._debug('reloading configuration');
     await this._subscribeToDevices();
   }
 
   async _api() {
     return this.homey.app.getHomeyAPI();
+  }
+
+  // Debounce rapid duplicate capability callbacks. If the same device fires
+  // the same value within 80ms, only the last one is processed.
+  // If the value changes, process immediately.
+  _debouncedCallback(deviceId, value, handler) {
+    const last = this._lastCallbackValues.get(deviceId);
+    if (last !== undefined && last !== value) {
+      this._flushCallback(deviceId, value, handler);
+      return;
+    }
+    this._lastCallbackValues.set(deviceId, value);
+
+    const existing = this._callbackTimers.get(deviceId);
+    if (existing) this.homey.clearTimeout(existing);
+
+    const timer = this.homey.setTimeout(() => {
+      this._callbackTimers.delete(deviceId);
+      this._flushCallback(deviceId, value, handler);
+    }, 80);
+
+    this._callbackTimers.set(deviceId, timer);
+  }
+
+  _flushCallback(deviceId, value, handler) {
+    this._callbackTimers.delete(deviceId);
+    this._lastCallbackValues.set(deviceId, value);
+    handler(value);
   }
 
   // ─── Subscribe ────────────────────────────────────────────────────────────
@@ -116,14 +169,16 @@ class SwitchSyncDevice extends Device {
         this._deviceNames.set(deviceId, name);
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
-          this._updateButtonValue(deviceId);
-          this._updateSubCapStatus(deviceId);
-          this._onLinkedDeviceChanged(deviceId, name, value)
-            .catch(err => this.error(`[${this.getName()}] Error handling change from "${name}": ${err.message}`));
+          this._debouncedCallback(deviceId, value, debouncedValue => {
+            this._updateButtonValue(deviceId);
+            this._updateSubCapStatus(deviceId);
+            this._onLinkedDeviceChanged(deviceId, name, debouncedValue)
+              .catch(err => this.error(`[${this.getName()}] Error handling change from "${name}": ${err.message}`));
+          });
         });
 
         this._listeners.set(deviceId, { device, onoffInstance });
-        this.log(`[${this.getName()}] Subscribed to "${name}"`);
+        this._debug(`subscribed "${name}"`);
       } catch (err) {
         this.error(`[${this.getName()}] Could not subscribe "${deviceId}": ${err.message}`);
         missingCount++;
@@ -155,7 +210,7 @@ class SwitchSyncDevice extends Device {
       }
       const virtualCurrent = this.getCapabilityValue('onoff');
       if (virtualCurrent !== isAnyOn) {
-        if (this.getSetting('debug')) this.log(`[${this.getName()}] Boot sync: → ${isAnyOn}`);
+        this._debug(`boot sync -> ${isAnyOn ? 'ON' : 'OFF'}`);
         await this.setCapabilityValue('onoff', isAnyOn).catch(err => this.error(`[${this.getName()}] Boot sync setCapabilityValue error: ${err.message}`));
       }
     } catch (err) {
@@ -168,7 +223,7 @@ class SwitchSyncDevice extends Device {
     const targetValue = this.getCapabilityValue('onoff');
     const hasDiverging = [...this._listeners.values()].some(({ onoffInstance }) => onoffInstance.value !== targetValue);
     if (hasDiverging) {
-      this.log(`[${this.getName()}] Boot align: propagating ${targetValue ? 'ON' : 'OFF'} to diverging devices`);
+      this._debug(`boot align: propagating ${targetValue ? 'ON' : 'OFF'} to diverging devices`);
       await this._propagate(targetValue, null);
     }
   }
@@ -238,7 +293,7 @@ class SwitchSyncDevice extends Device {
       const entry = this._listeners.get(deviceId);
       if (!entry || !entry.device.available) return;
 
-      this.log(`[${this.getName()}] linked button: "${entry.device.name}" -> ${value ? 'ON' : 'OFF'}`);
+      this._debug(`linked button: "${entry.device.name}" -> ${value ? 'ON' : 'OFF'}`);
       await this._setButtonCapValue(capId, value).catch(() => {});
       await entry.device.setCapabilityValue({ capabilityId: 'onoff', value });
     });
@@ -324,21 +379,21 @@ class SwitchSyncDevice extends Device {
 
     const now        = Date.now();
     const suppressMs = this.getSetting('suppress_ms') || 2000;
-    const isDebug    = this.getSetting('debug');
+    const isDebug    = this._isDebugEnabled();
     const COOLDOWN   = 20000;
 
     for (const { deviceId, name, expected } of desynced) {
       // Skip if a propagation is still in flight for this device
       const exp = this._expectedStates.get(deviceId);
       if (exp && !exp.verified) {
-        if (isDebug) this.log(`[${this.getName()}] Auto-heal skipped "${name}" — propagation in flight`);
+        if (isDebug) this._debug(`auto-heal skipped "${name}" — propagation in flight`);
         continue;
       }
 
       // Cooldown: don't retry the same device within 20s
       const lastHeal = this._healCooldowns.get(deviceId) || 0;
       if (now - lastHeal < COOLDOWN) {
-        if (isDebug) this.log(`[${this.getName()}] Auto-heal skipped "${name}" — cooldown`);
+        if (isDebug) this._debug(`auto-heal skipped "${name}" — cooldown`);
         continue;
       }
 
@@ -346,7 +401,7 @@ class SwitchSyncDevice extends Device {
       if (!entry || !entry.device.available) continue;
 
       this._healCooldowns.set(deviceId, now);
-      this.log(`[${this.getName()}] Auto-heal: "${name}" → ${expected ? 'ON' : 'OFF'}`);
+      this._debug(`auto-heal: "${name}" -> ${expected ? 'ON' : 'OFF'}`);
       await this._setDeviceValue(entry.device, deviceId, expected, suppressMs, isDebug);
     }
   }
@@ -357,23 +412,23 @@ class SwitchSyncDevice extends Device {
     if (!this._notifiedDesyncs.has(deviceId)) return;
     this._notifiedDesyncs.delete(deviceId);
     const name = this._deviceNames.get(deviceId) || deviceId;
-    this.log(`[${this.getName()}] "${name}" back in sync`);
+    this._debug(`"${name}" back in sync`);
   }
 
   // ─── Incoming: linked device changed (physical or remote) ─────────────────
 
   async _onLinkedDeviceChanged(sourceId, sourceName, value) {
-    const isDebug = this.getSetting('debug');
+    const isDebug = this._isDebugEnabled();
 
     // Device was offline during propagation and just reconnected
     const pendingEntry = this._pendingOffline.get(sourceId);
     if (pendingEntry !== undefined) {
       const { value: pendingValue } = pendingEntry;
       if (pendingValue === value) {
-        if (isDebug) this.log(`[${this.getName()}] "${sourceName}" back online already in sync (${value})`);
+        if (isDebug) this._debug(`"${sourceName}" back online already in sync (${value})`);
         this._pendingOffline.delete(sourceId);
       } else {
-        if (isDebug) this.log(`[${this.getName()}] "${sourceName}" back online, syncing to ${pendingValue}`);
+        if (isDebug) this._debug(`"${sourceName}" back online, syncing to ${pendingValue}`);
         this._pendingOffline.delete(sourceId);
         const entry = this._listeners.get(sourceId);
         if (entry) {
@@ -387,7 +442,7 @@ class SwitchSyncDevice extends Device {
     // Echo suppression — callback caused by our own command
     const suppressed = this._suppress.get(sourceId);
     if (suppressed && suppressed.value === value) {
-      if (isDebug) this.log(`[${this.getName()}] Echo suppressed from "${sourceName}" (${value})`);
+      if (isDebug) this._debug(`echo suppressed from "${sourceName}" (${value})`);
 
       // Echo IS the confirmation — mark expected state as verified and record timing
       const exp = this._expectedStates.get(sourceId);
@@ -399,7 +454,7 @@ class SwitchSyncDevice extends Device {
       return;
     }
 
-    if (isDebug) this.log(`[${this.getName()}] "${sourceName}" → ${value ? 'ON' : 'OFF'}`);
+    if (isDebug) this._debug(`"${sourceName}" -> ${value ? 'ON' : 'OFF'}`);
 
     // Mark as verified if it matches expected (late confirmation after suppress window)
     const exp = this._expectedStates.get(sourceId);
@@ -420,7 +475,7 @@ class SwitchSyncDevice extends Device {
   async _onOwnOnOff(value) {
     if (this._isBootSync) return;
 
-    this.log(`[${this.getName()}] Binding set to ${value ? 'ON' : 'OFF'} via UI/Flow`);
+    this._debug(`binding set to ${value ? 'ON' : 'OFF'} via UI/Flow`);
     await this._propagate(value, null);
   }
 
@@ -429,7 +484,7 @@ class SwitchSyncDevice extends Device {
   async _propagate(value, sourceId) {
     // Same-tick dedup: drop if identical value already in flight this tick
     if (this._lastPropagatedValue === value) {
-      if (this.getSetting('debug')) this.log(`[${this.getName()}] Skipping duplicate propagation ${value}`);
+      this._debug('propagate skipped', { value, reason: 'duplicate' });
       return;
     }
     this._lastPropagatedValue = value;
@@ -438,32 +493,54 @@ class SwitchSyncDevice extends Device {
     // Store context for the verify report
     const triggerName = sourceId
       ? (this._deviceNames.get(sourceId) || sourceId)
-      : 'Virtual Switch';
+      : this.homey.__('sync.virtual_switch');
     this._pendingReportContext = { trigger: triggerName, value, startedAt: Date.now() };
 
     const deviceIds  = this.getStoreValue('deviceIds') || [];
+    const primaryId  = this._primaryDeviceId;
     const suppressMs = this.getSetting('suppress_ms') || 2000;
-    const isDebug    = this.getSetting('debug');
+    const isDebug    = this._isDebugEnabled();
 
-    const promises = deviceIds.map(async (deviceId) => {
-      if (deviceId === sourceId) return;
+    // Order: primary first (if set and not the source), then the rest.
+    const orderedIds = [...deviceIds];
+    if (primaryId && primaryId !== sourceId) {
+      const idx = orderedIds.indexOf(primaryId);
+      if (idx > 0) {
+        orderedIds.splice(idx, 1);
+        orderedIds.unshift(primaryId);
+      }
+    }
+
+    this._debug('propagate', { value, sourceId, primaryId, count: orderedIds.length });
+
+    let index = 0;
+    for (const deviceId of orderedIds) {
+      if (deviceId === sourceId) continue;
 
       const entry = this._listeners.get(deviceId);
-      if (!entry) return;
+      if (!entry) continue;
 
       const { device, onoffInstance } = entry;
 
       if (onoffInstance.value === value) {
-        if (isDebug) this.log(`[${this.getName()}] "${device.name}" already ${value ? 'ON' : 'OFF'} — skipped`);
+        this._debug('skip already', { device: device.name, value });
         this._expectedStates.set(deviceId, { value, timestamp: Date.now(), verified: true, syncedAt: 0 });
-        return;
+        continue;
       }
 
       if (!device.available) {
-        if (isDebug) this.log(`[${this.getName()}] "${device.name}" offline — will sync when it comes back`);
+        this._debug('offline queued', { device: device.name, value });
         this._pendingOffline.set(deviceId, { value, timestamp: Date.now() });
         this._expectedStates.set(deviceId, { value, timestamp: Date.now(), verified: false, offline: true });
-        return;
+        continue;
+      }
+
+      // Stagger non-primary devices to avoid Zigbee congestion.
+      const staggerMs = (deviceId === primaryId) ? 0 : index * SLAVE_STAGGER_MS;
+      index++;
+      if (staggerMs > 0) {
+        this._debug('stagger wait', { device: device.name, staggerMs });
+        await new Promise(resolve => this.homey.setTimeout(resolve, staggerMs));
       }
 
       // Register expectation — echo callback will mark verified + set syncedAt
@@ -474,9 +551,7 @@ class SwitchSyncDevice extends Device {
         const exp = this._expectedStates.get(deviceId);
         if (exp) exp.errorMessage = result.errorMessage;
       }
-    });
-
-    await Promise.allSettled(promises);
+    }
 
     // Group state changed — refresh the ⚠ markers of devices that didn't echo
     for (const deviceId of deviceIds) this._updateSubCapStatus(deviceId);
@@ -494,14 +569,15 @@ class SwitchSyncDevice extends Device {
   // ─── Set a single device value with echo suppression ─────────────────────
 
   async _setDeviceValue(device, deviceId, value, suppressMs, isDebug) {
-    try {
-      const existing = this._suppress.get(deviceId);
-      if (existing) this.homey.clearTimeout(existing.timer);
-      const timer = this.homey.setTimeout(() => this._suppress.delete(deviceId), suppressMs);
-      this._suppress.set(deviceId, { value, timer });
+    const existing = this._suppress.get(deviceId);
+    if (existing) this.homey.clearTimeout(existing.timer);
+    const timer = this.homey.setTimeout(() => this._suppress.delete(deviceId), suppressMs);
+    this._suppress.set(deviceId, { value, timer });
 
-      if (isDebug) this.log(`[${this.getName()}] → ${value ? 'ON' : 'OFF'} to "${device.name}"`);
+    try {
+      this._debug(`write -> ${value ? 'ON' : 'OFF'} to "${device.name}"`);
       await device.setCapabilityValue({ capabilityId: 'onoff', value });
+      this._debug(`"${device.name}" write confirmed`);
       return { ok: true };
     } catch (err) {
       this.error(`[${this.getName()}] Failed to set "${device.name}": ${err.message}`);
@@ -581,7 +657,7 @@ class SwitchSyncDevice extends Device {
     const now = Date.now();
     for (const [deviceId, { timestamp }] of this._pendingOffline) {
       if (now - timestamp > PENDING_OFFLINE_TTL_MS) {
-        this.log(`[${this.getName()}] Pending offline expired for "${this._deviceNames.get(deviceId) || deviceId}"`);
+      this._debug(`pending offline expired for "${this._deviceNames.get(deviceId) || deviceId}"`);
         this._pendingOffline.delete(deviceId);
         this._expectedStates.delete(deviceId);
       }
@@ -625,11 +701,11 @@ class SwitchSyncDevice extends Device {
     }
 
     if (recovered.length > 0) {
-      this.log(`[${this.getName()}] Health check: ${recovered.length} device(s) recovered — ${recovered.map(r => r.name).join(', ')}`);
+      this._debug(`health check recovered ${recovered.length} device(s): ${recovered.map(r => r.name).join(', ')}`);
       this.homey.app.addSyncReport({
         timestamp: new Date().toISOString(),
         group:     this.getName(),
-        trigger:   'Health Check',
+        trigger:   this.homey.__('sync.health_check'),
         value:     virtualValue,
         devices:   recovered.map(r => ({ name: r.name, synced: true, recovered: true, durationMs: r.durationMs, repeatCount: r.repeatCount })),
         hasError:  false,
@@ -658,7 +734,7 @@ class SwitchSyncDevice extends Device {
       this.homey.app.addSyncReport({
         timestamp: new Date().toISOString(),
         group:     this.getName(),
-        trigger:   'Health Check',
+        trigger:   this.homey.__('sync.health_check'),
         value:     virtualValue,
         devices:   newDesyncs.map(d => ({ name: d.name, synced: false, expected: d.expected, actual: d.actual })),
         hasError:  true,
@@ -694,9 +770,10 @@ class SwitchSyncDevice extends Device {
     ).join(', ');
 
     try {
-      await this.homey.notifications.createNotification({
-        excerpt: `Switch Sync "${this.getName()}": ${names}`,
-      });
+      const excerpt = this.homey.__('sync.notification_excerpt')
+        .replace('{group}', this.getName())
+        .replace('{devices}', names);
+      await this.homey.notifications.createNotification({ excerpt });
     } catch (err) {
       this.error(`[${this.getName()}] Could not send notification: ${err.message}`);
     }
@@ -718,20 +795,20 @@ class SwitchSyncDevice extends Device {
       if (!exp.offline && !exp.verified) return;
     }
     const value = this.getCapabilityValue('onoff');
-    this.log(`[${this.getName()}] Flow: Force resync → ${value ? 'ON' : 'OFF'}`);
+    this._debug(`flow force resync -> ${value ? 'ON' : 'OFF'}`);
     await this._propagate(value, null);
   }
 
   // ─── Settings changed ─────────────────────────────────────────────────────
 
   async onSettings({ changedKeys }) {
-    this.log(`[${this.getName()}] Settings changed: ${changedKeys.join(', ')}`);
+    this._debug(`settings changed: ${changedKeys.join(', ')}`);
   }
 
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   async onDeleted() {
-    this.log(`[${this.getName()}] Deleted — cleaning up`);
+    this._debug('deleted — cleaning up');
 
     if (this._healthStartTimer) this.homey.clearTimeout(this._healthStartTimer);
     if (this._healthInterval)   this.homey.clearInterval(this._healthInterval);
@@ -744,6 +821,9 @@ class SwitchSyncDevice extends Device {
 
     for (const { timer } of this._suppress.values()) this.homey.clearTimeout(timer);
     this._suppress.clear();
+
+    for (const timer of this._callbackTimers.values()) this.homey.clearTimeout(timer);
+    this._callbackTimers.clear();
 
     this._pendingOffline.clear();
     this._expectedStates.clear();

@@ -30,6 +30,6 @@
     "en": "Fixed the titles of the group sync status and Force Resync Flow cards."
   },
   "1.1.0": {
-    "en": "Added the Switch Master driver for scene-style control, plus separate status toggles for Linked Switch and Switch Master cards."
+    "en": "Added the Switch Master driver for scene-style control (1 master + 2 to 9 slaves). Linked Switch groups can now have an optional Primary device that is controlled first, while the rest follow with a small stagger to keep your Zigbee network calm. Commands are debounced to avoid duplicate propagations, and the shared sync log only records failures and recoveries. Device conflict rules are now clearer: a Linked Switch member can also be a controlled switch in a Switch Master, but not both members of the same Linked Switch group. The log page refreshes automatically when new entries arrive, and a false-positive SDK warning was suppressed."
   }
 }

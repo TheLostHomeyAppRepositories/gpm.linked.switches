@@ -10,7 +10,12 @@
     "err_min2": "Seleziona almeno 2 dispositivi.",
     "device": "dispositivo",
     "devices": "dispositivi",
-    "selected": "selezionato/i"
+    "selected": "selezionato/i",
+    "primary_label": "Principale",
+    "primary_short": "Pri",
+    "primary_hint": "Opzionale: seleziona il dispositivo collegato direttamente alla luce o alla presa. Verrà controllato per primo.",
+    "primary_selected": "Principale selezionato",
+    "no_primary": "Nessun principale selezionato"
   },
   "pair": {
     "title": "Crea gruppo di interruttori",
@@ -45,7 +50,8 @@
     "save": "Salva",
     "saved": "Salvato ✓",
     "err_save": "Errore durante il salvataggio delle impostazioni.",
-    "err_suppress_range": "La finestra di soppressione deve essere 500–10000 ms."
+    "err_suppress_range": "La finestra di soppressione deve essere 500–10000 ms.",
+    "err_primary_not_selected": "Il dispositivo principale deve essere tra quelli selezionati."
   },
   "error": {
     "missing_devices": "dispositivo/i collegato/i non trovato/i. Ripara questo gruppo.",
@@ -59,35 +65,43 @@
     "empty": "Nessun evento di desincronizzazione registrato.",
     "expected": "Atteso",
     "actual": "Effettivo",
-    "filter_all": "Tutti",
-    "filter_errors": "Errori",
-    "log_mode_label": "Modalità log:",
     "show_status_label": "Mostra lo stato dei subdevice nelle card Linked Switch:",
-    "show_master_status_label": "Mostra lo stato dei subdevice nelle card Switch Master:",
-    "log_mode_errors": "Solo errori",
-    "log_mode_full": "Log completo",
-    "log_title_full": "Log di sincronizzazione"
+    "show_master_status_label": "Mostra lo stato dei subdevice nelle card Switch Master:"
+  },
+  "sync": {
+    "virtual_switch": "Interruttore virtuale",
+    "health_check": "Controllo salute",
+    "notification_excerpt": "Interruttori collegati \"{group}\": {devices}"
   },
   "master_wizard": {
-    "master_name": "Nome master",
+    "master_name": "Nome del dispositivo virtuale",
     "devices_to_control": "Interruttori da controllare",
     "hint_2_9": "Seleziona da 2 a 9 interruttori con capacità ON/OFF.",
     "err_min2": "Seleziona almeno 2 interruttori.",
     "err_max9": "Seleziona al massimo 9 interruttori.",
     "err_device_conflict": "Uno o più dispositivi sono già usati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, oppure eliminalo prima.",
     "virtual_name": "Nome dispositivo virtuale",
-    "master": "Master",
-    "slave": "Slave",
-    "master_selected": "Master selezionato",
-    "no_master": "Nessun master selezionato",
-    "hint_master_slaves": "Scegli un interruttore fisico master e da 2 a 9 interruttori slave.",
-    "err_master_required": "Scegli un interruttore master."
+    "master_device": "Interruttore principale",
+    "master_placeholder": "Seleziona un interruttore principale",
+    "master_hint": "Opzionale. Scegli l'interruttore fisico collegato direttamente alla luce o alla presa per controllarlo per primo. Lascia vuoto se tutti gli interruttori sono indiretti (es. lampade Hue controllate da interruttori a muro).",
+    "selected_master": "Principale selezionato",
+    "change_master": "Cambia principale",
+    "slave_devices": "Interruttori controllati",
+    "slave_hint": "Scegli da 2 a 9 interruttori da controllare.",
+    "master": "Principale",
+    "slave": "Controllato",
+    "master_short": "Pri",
+    "slave_short": "Ctl",
+    "master_selected": "Principale selezionato",
+    "no_master": "Nessun principale selezionato",
+    "hint_master_slaves": "Scegli un interruttore fisico principale e da 2 a 9 interruttori controllati.",
+    "err_master_required": "Scegli un interruttore principale."
   },
   "master_pair": {
     "title": "Crea Switch Master",
     "name_placeholder": "es. Scena Suite",
     "btn_create": "Crea Switch Master",
-    "err_name": "Inserisci un nome per il master.",
+    "err_name": "Inserisci un nome per il dispositivo.",
     "err_create": "Errore durante la creazione dello Switch Master."
   },
   "master_repair": {

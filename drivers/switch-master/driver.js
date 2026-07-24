@@ -36,11 +36,10 @@ class SwitchMasterDriver extends Driver {
   _buildSlaveOccupiedMap(excludeHomeyDeviceId = null) {
     const occupied = new Map();
     const driverIds = ['switch-sync', 'switch-master'];
-    const markOccupied = (id, name, role) => {
-      const current = occupied.get(id);
-      if (!current || current.role !== 'member' || role === 'member') {
-        occupied.set(id, { name, role });
-      }
+    const markOccupied = (id, entry) => {
+      const current = occupied.get(id) || [];
+      current.push(entry);
+      occupied.set(id, current);
     };
 
     for (const driverId of driverIds) {
@@ -54,13 +53,14 @@ class SwitchMasterDriver extends Driver {
       for (const device of driver.getDevices()) {
         if (excludeHomeyDeviceId && device.getId() === excludeHomeyDeviceId) continue;
         const name = device.getName();
+        const groupId = device.getId();
         const masterId = device.getStoreValue('masterDeviceId');
         if (masterId) {
-          markOccupied(masterId, name, 'master');
+          markOccupied(masterId, { name, role: 'master', driverId, groupId });
         }
 
         for (const id of (device.getStoreValue('deviceIds') || []).filter(Boolean)) {
-          markOccupied(id, name, 'member');
+          markOccupied(id, { name, role: 'member', driverId, groupId });
         }
       }
     }
@@ -70,10 +70,38 @@ class SwitchMasterDriver extends Driver {
 
   _assertNoConflicts(config, excludeHomeyDeviceId = null) {
     const occupied = this._buildSlaveOccupiedMap(excludeHomeyDeviceId);
-    const conflicts = [config.masterDeviceId, ...(config.deviceIds || [])].filter(id => occupied.has(id));
-    if (conflicts.length === 0) return;
+    const slaveIds = [...new Set(config.deviceIds || [])].filter(id => id !== config.masterDeviceId);
+    const masterConflicts = occupied.get(config.masterDeviceId) || [];
+    const slaveConflicts = [];
+    const linkedFamilies = new Map();
 
-    const names = [...new Set(conflicts.map(id => occupied.get(id).name))];
+    for (const id of slaveIds) {
+      const entries = occupied.get(id) || [];
+      const allowedLinkedEntries = entries.filter(entry => entry.driverId === 'switch-sync' && entry.role === 'member');
+      const blockedEntries = entries.filter(entry => !(entry.driverId === 'switch-sync' && entry.role === 'member'));
+
+      if (blockedEntries.length > 0) {
+        slaveConflicts.push(...blockedEntries.map(entry => entry.name));
+      }
+
+      for (const entry of allowedLinkedEntries) {
+        const seen = linkedFamilies.get(entry.groupId);
+        if (seen && seen !== id) {
+          slaveConflicts.push(entry.name);
+          continue;
+        }
+        linkedFamilies.set(entry.groupId, id);
+      }
+    }
+
+    if (masterConflicts.length === 0 && slaveConflicts.length === 0) return;
+
+    const names = [
+      ...new Set([
+        ...masterConflicts.map(entry => entry.name),
+        ...slaveConflicts,
+      ]),
+    ];
     throw new Error(
       this.homey.__('master_wizard.err_device_conflict').replace('{names}', names.join('", "'))
     );

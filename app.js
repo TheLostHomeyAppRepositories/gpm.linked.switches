@@ -3,7 +3,34 @@
 const Homey = require('homey');
 const { HomeyAPI } = require('homey-api');
 
+// Set to true during development to get extra debug logs.
+// Change back to false before building for production.
+const DEBUG = true;
+
 module.exports = class SwitchSyncApp extends Homey.App {
+
+  // Global development debug toggle.
+  // Edit the constant above, or set GPM_LINKED_SWITCHES_DEBUG=true for tests.
+  _isDebugEnabled() {
+    if (DEBUG) return true;
+    const value = process.env.GPM_LINKED_SWITCHES_DEBUG;
+    return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+  }
+
+  // Structured debug helpers. Drivers can call these via:
+  //   this.homey.app.debugLog(tag, payload)
+  //   this.homey.app.debugError(tag, payload)
+  debugLog(tag, payload) {
+    if (!this._isDebugEnabled()) return;
+    if (payload !== undefined) this.log(`[DEBUG][${tag}]`, payload);
+    else this.log(`[DEBUG][${tag}]`);
+  }
+
+  debugError(tag, payload) {
+    if (!this._isDebugEnabled()) return;
+    if (payload !== undefined) this.error(`[DEBUG][${tag}]`, payload);
+    else this.error(`[DEBUG][${tag}]`);
+  }
 
   _isSettingEnabled(value, defaultValue = true) {
     if (value === undefined || value === null) return defaultValue;
@@ -13,6 +40,9 @@ module.exports = class SwitchSyncApp extends Homey.App {
 
   async onInit() {
     this.log('Switch Sync app initialized');
+    if (this._isDebugEnabled()) {
+      this.log('Development debug logging is enabled');
+    }
     this._homeyAPI     = null;
     this._syncLog      = null;
     this._syncLogTimer = null;
@@ -22,6 +52,12 @@ module.exports = class SwitchSyncApp extends Homey.App {
     }
     if (this.homey.settings.get('show_master_status') === undefined) {
       this.homey.settings.set('show_master_status', 'false');
+    }
+
+    // Avoid false-positive MaxListenersExceededWarning caused by Homey SDK
+    // internal listeners on the shared ManagerSettings emitter.
+    if (typeof this.homey.settings.setMaxListeners === 'function') {
+      this.homey.settings.setMaxListeners(0);
     }
 
     this.homey.settings.on('set', (key) => {
@@ -41,6 +77,9 @@ module.exports = class SwitchSyncApp extends Homey.App {
         this._renderAllGroupCards().catch(err => this.error(`Failed to refresh group cards: ${err.message}`));
       }
     });
+
+    // log_mode was removed in v1.2.0; clean up stale setting from older installs.
+    this.homey.settings.unset('log_mode');
   }
 
   async getHomeyAPI() {
@@ -54,15 +93,14 @@ module.exports = class SwitchSyncApp extends Homey.App {
     // Suppress writes for 3s after a manual clear (health check race)
     if (this._clearTs && Date.now() - this._clearTs < 3000) return;
 
-    // Respect log mode — skip successful syncs when mode is 'errors' (default),
-    // but always keep `important` events (e.g. a recovery that closes a prior failure)
-    const logMode = this.homey.settings.get('log_mode') || 'errors';
-    if (!report.hasError && !report.important && logMode !== 'full') return;
+    // The settings log only tracks sync failures and recoveries.
+    // Successful syncs are visible in each device's own Homey history.
+    if (!report.hasError && !report.important) return;
 
     const summary = this._formatSyncReport(report);
     if (summary) {
       if (report.hasError) this.error(summary);
-      else if (report.important || logMode === 'full') this.log(summary);
+      else this.log(summary);
     }
 
     if (!this._syncLog) {
@@ -79,7 +117,7 @@ module.exports = class SwitchSyncApp extends Homey.App {
       }
       this.homey.settings.set('desyncLog', this._syncLog);
     } else {
-      // Debounce flash writes for successful syncs — max once per minute
+      // Debounce flash writes for recoveries — max once per minute
       if (this._syncLogTimer) return;
       this._syncLogTimer = this.homey.setTimeout(() => {
         this._syncLogTimer = null;

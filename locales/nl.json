@@ -10,7 +10,12 @@
     "err_min2": "Selecteer minimaal 2 apparaten.",
     "device": "apparaat",
     "devices": "apparaten",
-    "selected": "geselecteerd"
+    "selected": "geselecteerd",
+    "primary_label": "Hoofd",
+    "primary_short": "Pri",
+    "primary_hint": "Optioneel: selecteer het apparaat dat direct met het licht of stopcontact is verbonden. Dit wordt als eerste bediend.",
+    "primary_selected": "Hoofd geselecteerd",
+    "no_primary": "Geen hoofd geselecteerd"
   },
   "pair": {
     "title": "Schakelaargroep aanmaken",
@@ -45,7 +50,8 @@
     "save": "Opslaan",
     "saved": "Opgeslagen ✓",
     "err_save": "Fout bij opslaan van instellingen.",
-    "err_suppress_range": "Onderdrukkingsvenster moet 500–10000 ms zijn."
+    "err_suppress_range": "Onderdrukkingsvenster moet 500–10000 ms zijn.",
+    "err_primary_not_selected": "Het hoofdapparaat moet een van de geselecteerde apparaten zijn."
   },
   "error": {
     "missing_devices": "gekoppeld(e) apparaat/apparaten niet meer gevonden. Herstel deze groep.",
@@ -59,35 +65,43 @@
     "empty": "Geen desynchroon-gebeurtenissen geregistreerd.",
     "expected": "Verwacht",
     "actual": "Werkelijk",
-    "filter_all": "Alles",
-    "filter_errors": "Fouten",
-    "log_mode_label": "Logmodus:",
     "show_status_label": "Toon subapparaatstatus op Linked Switch-kaarten:",
-    "show_master_status_label": "Toon subapparaatstatus op Switch Master-kaarten:",
-    "log_mode_errors": "Alleen fouten",
-    "log_mode_full": "Volledig synclogboek",
-    "log_title_full": "Synclogboek"
+    "show_master_status_label": "Toon subapparaatstatus op Switch Master-kaarten:"
+  },
+  "sync": {
+    "virtual_switch": "Virtuele schakelaar",
+    "health_check": "Gezondheidscheck",
+    "notification_excerpt": "Gekoppelde schakelaars \"{group}\": {devices}"
   },
   "master_wizard": {
-    "master_name": "Masternaam",
+    "master_name": "Naam virtueel apparaat",
     "devices_to_control": "Schakelaars om te bedienen",
     "hint_2_9": "Selecteer 2 tot 9 schakelaars met ON/OFF-mogelijkheid.",
     "err_min2": "Selecteer ten minste 2 schakelaars.",
     "err_max9": "Selecteer niet meer dan 9 schakelaars.",
     "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Repareren op die groep om deze te bewerken, of verwijder deze eerst.",
     "virtual_name": "Naam virtueel apparaat",
-    "master": "Master",
-    "slave": "Slave",
-    "master_selected": "Master geselecteerd",
-    "no_master": "Geen master geselecteerd",
-    "hint_master_slaves": "Kies één fysieke masterschakelaar en 2 tot 9 slaveschakelaars.",
-    "err_master_required": "Kies één masterschakelaar."
+    "master_device": "Hoofdschakelaar",
+    "master_placeholder": "Selecteer een hoofdschakelaar",
+    "master_hint": "Optioneel. Kies de fysieke schakelaar die direct met het licht of stopcontact is verbonden om deze als eerste te bedienen. Laat leeg als alle schakelaars indirect zijn (bijv. Hue-lampen via wandschakelaars).",
+    "selected_master": "Geselecteerde hoofdschakelaar",
+    "change_master": "Hoofdschakelaar wijzigen",
+    "slave_devices": "Geregelde schakelaars",
+    "slave_hint": "Kies 2 tot 9 schakelaars om te bedienen.",
+    "master": "Hoofd",
+    "slave": "Geregeld",
+    "master_short": "Pri",
+    "slave_short": "Ctl",
+    "master_selected": "Hoofdschakelaar geselecteerd",
+    "no_master": "Geen hoofdschakelaar geselecteerd",
+    "hint_master_slaves": "Kies één fysieke hoofdschakelaar en 2 tot 9 geregelde schakelaars.",
+    "err_master_required": "Kies één hoofdschakelaar."
   },
   "master_pair": {
     "title": "Switch Master maken",
     "name_placeholder": "bijv. Suite scene",
     "btn_create": "Switch Master maken",
-    "err_name": "Voer een masternaam in.",
+    "err_name": "Voer een apparaatnaam in.",
     "err_create": "Fout bij maken van Switch Master."
   },
   "master_repair": {

@@ -81,10 +81,38 @@
       height: 16px;
       cursor: pointer;
       accent-color: #007aff;
+      flex-shrink: 0;
     }
 
-    .device-name { font-size: 14px; flex: 1; }
-    .device-zone { font-size: 11px; color: #aaa; margin-left: 6px; }
+    .choice {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      line-height: 1;
+      cursor: pointer;
+      gap: 2px;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .choice input[type="radio"] {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+      accent-color: #007aff;
+      cursor: pointer;
+    }
+    .choice input[type="radio"]:disabled {
+      accent-color: #ccc;
+      cursor: default;
+    }
+
+    .device-name { font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .device-zone { font-size: 11px; color: #aaa; margin-left: 6px; white-space: nowrap; flex-shrink: 0; }
 
     .hint { font-size: 12px; color: #999; margin-bottom: 8px; }
 
@@ -128,6 +156,7 @@
 
   <label class="field-label" id="t-devices-label"></label>
   <p class="hint" id="t-hint"></p>
+  <p class="hint" id="t-primary-hint"></p>
 
   <div class="filter-row">
     <input type="text" id="filter-text" oninput="applyFilter()" />
@@ -147,6 +176,7 @@
   <script>
     var availableDevices = [];
     var selectedIds = {};
+    var primaryId = null;
 
     var __ = function(k) { try { return Homey.__(k) || k; } catch(e) { return k; } };
 
@@ -163,6 +193,7 @@
       document.getElementById('t-title').textContent         = __('repair.title');
       document.getElementById('t-devices-label').textContent = __('wizard.devices_to_sync');
       document.getElementById('t-hint').textContent          = __('wizard.hint_min2');
+      document.getElementById('t-primary-hint').textContent  = __('wizard.primary_hint');
       document.getElementById('t-all-zones').textContent     = __('wizard.all_zones');
       document.getElementById('loading').textContent         = __('wizard.loading');
       document.getElementById('btn-save').textContent        = __('repair.btn_save');
@@ -214,18 +245,32 @@
       list.innerHTML = devices.map(function(d) {
         var checked  = selectedIds[d.id] ? ' checked' : '';
         var selClass = selectedIds[d.id] ? ' selected' : '';
+        var isPrimary  = primaryId === d.id ? ' checked' : '';
+        var primaryDisabled = !selectedIds[d.id] ? ' disabled' : '';
         var zoneBadge = d.zoneName ? '<span class="device-zone">' + escapeHtml(d.zoneName) + '</span>' : '';
         return '<label class="device-item' + selClass + '" id="item-' + escapeHtml(d.id) + '">' +
           '<input type="checkbox" value="' + escapeHtml(d.id) + '"' + checked + ' onchange="onCheckChange(this)" />' +
+          '<label class="choice" title="' + escapeHtml(__('wizard.primary_label')) + '"><input type="radio" name="primary" value="' + escapeHtml(d.id) + '"' + isPrimary + primaryDisabled + ' onchange="setPrimary(this.value)" />' + __('wizard.primary_short') + '</label>' +
           '<span class="device-name">' + escapeHtml(d.name) + '</span>' + zoneBadge +
           '</label>';
       }).join('');
       updateCount();
     }
 
+    function setPrimary(id) {
+      primaryId = id || null;
+      if (primaryId && !selectedIds[primaryId]) {
+        selectedIds[primaryId] = true;
+      }
+      updateCount();
+      applyFilter();
+    }
+
     function updateCount() {
       var n = Object.keys(selectedIds).length;
-      document.getElementById('device-count').textContent = n + ' ' + (n !== 1 ? __('wizard.devices') : __('wizard.device')) + ' ' + __('wizard.selected');
+      var countEl = document.getElementById('device-count');
+      var primaryText = primaryId ? __('wizard.primary_selected') : __('wizard.no_primary');
+      countEl.textContent = primaryText + ' · ' + n + ' ' + (n !== 1 ? __('wizard.devices') : __('wizard.device')) + ' ' + __('wizard.selected');
     }
 
     function onCheckChange(checkbox) {
@@ -235,10 +280,12 @@
         if (item) item.classList.add('selected');
       } else {
         delete selectedIds[checkbox.value];
+        if (primaryId === checkbox.value) primaryId = null;
         var item = document.getElementById('item-' + checkbox.value);
         if (item) item.classList.remove('selected');
       }
       updateCount();
+      applyFilter();
     }
 
     function saveBinding() {
@@ -248,7 +295,7 @@
 
       document.getElementById('btn-save').disabled = true;
 
-      Homey.emit('save_config', { deviceIds: deviceIds })
+      Homey.emit('save_config', { deviceIds: deviceIds, primaryDeviceId: primaryId })
         .then(function() { Homey.done(); })
         .catch(function(err) {
           showError((err && err.message) || __('repair.err_save'));
@@ -261,6 +308,7 @@
     Homey.emit('get_config', null)
       .then(function(config) {
         config = config || {};
+        primaryId = config.primaryDeviceId || null;
         (config.deviceIds || []).forEach(function(id) { selectedIds[id] = true; });
         return Homey.emit('get_available_devices', null);
       })

@@ -10,7 +10,12 @@
     "err_min2": "Veuillez sélectionner au moins 2 appareils.",
     "device": "appareil",
     "devices": "appareils",
-    "selected": "sélectionné(s)"
+    "selected": "sélectionné(s)",
+    "primary_label": "Principal",
+    "primary_short": "Pri",
+    "primary_hint": "Facultatif : sélectionnez l'appareil directement connecté à la lumière ou à la prise. Il sera contrôlé en premier.",
+    "primary_selected": "Principal sélectionné",
+    "no_primary": "Aucun principal sélectionné"
   },
   "pair": {
     "title": "Créer un groupe d'interrupteurs",
@@ -45,7 +50,8 @@
     "save": "Enregistrer",
     "saved": "Enregistré ✓",
     "err_save": "Erreur lors de l'enregistrement des paramètres.",
-    "err_suppress_range": "La fenêtre de suppression doit être de 500 à 10000 ms."
+    "err_suppress_range": "La fenêtre de suppression doit être de 500 à 10000 ms.",
+    "err_primary_not_selected": "L'appareil principal doit faire partie de la sélection."
   },
   "error": {
     "missing_devices": "appareil(s) lié(s) introuvable(s). Veuillez réparer ce groupe.",
@@ -59,35 +65,43 @@
     "empty": "Aucun événement de désynchronisation enregistré.",
     "expected": "Attendu",
     "actual": "Réel",
-    "filter_all": "Tout",
-    "filter_errors": "Erreurs",
-    "log_mode_label": "Mode journal :",
     "show_status_label": "Afficher l'état des sous-appareils sur les cartes Linked Switch :",
-    "show_master_status_label": "Afficher l'état des sous-appareils sur les cartes Switch Master :",
-    "log_mode_errors": "Erreurs seulement",
-    "log_mode_full": "Journal complet",
-    "log_title_full": "Journal de synchronisation"
+    "show_master_status_label": "Afficher l'état des sous-appareils sur les cartes Switch Master :"
+  },
+  "sync": {
+    "virtual_switch": "Interrupteur virtuel",
+    "health_check": "Vérification de santé",
+    "notification_excerpt": "Interrupteurs liés \"{group}\": {devices}"
   },
   "master_wizard": {
-    "master_name": "Nom du master",
+    "master_name": "Nom de l’appareil virtuel",
     "devices_to_control": "Interrupteurs à contrôler",
     "hint_2_9": "Sélectionnez 2 à 9 interrupteurs avec la capacité ON/OFF.",
     "err_min2": "Veuillez sélectionner au moins 2 interrupteurs.",
     "err_max9": "Veuillez sélectionner au maximum 9 interrupteurs.",
     "err_device_conflict": "Un ou plusieurs appareils sont déjà utilisés par : \"{names}\". Utilisez Réparer sur ce groupe pour le modifier, ou supprimez-le d’abord.",
     "virtual_name": "Nom de l’appareil virtuel",
-    "master": "Master",
-    "slave": "Slave",
-    "master_selected": "Master sélectionné",
-    "no_master": "Aucun master sélectionné",
-    "hint_master_slaves": "Choisissez un interrupteur physique master et 2 à 9 interrupteurs slaves.",
-    "err_master_required": "Veuillez choisir un interrupteur master."
+    "master_device": "Interrupteur principal",
+    "master_placeholder": "Sélectionnez un interrupteur principal",
+    "master_hint": "Facultatif. Choisissez l'interrupteur physique directement connecté à la lumière ou à la prise pour le contrôler en premier. Laissez vide si tous les interrupteurs sont indirects (ex. : lampes Hue contrôlées via des interrupteurs muraux).",
+    "selected_master": "Principal sélectionné",
+    "change_master": "Changer le principal",
+    "slave_devices": "Interrupteurs contrôlés",
+    "slave_hint": "Choisissez 2 à 9 interrupteurs à contrôler.",
+    "master": "Principal",
+    "slave": "Contrôlé",
+    "master_short": "Pri",
+    "slave_short": "Ctl",
+    "master_selected": "Principal sélectionné",
+    "no_master": "Aucun principal sélectionné",
+    "hint_master_slaves": "Choisissez un interrupteur physique principal et 2 à 9 interrupteurs contrôlés.",
+    "err_master_required": "Veuillez choisir un interrupteur principal."
   },
   "master_pair": {
     "title": "Créer un Switch Master",
     "name_placeholder": "p. ex. Scène Suite",
     "btn_create": "Créer le Switch Master",
-    "err_name": "Veuillez saisir un nom de master.",
+    "err_name": "Veuillez saisir un nom d’appareil.",
     "err_create": "Erreur lors de la création du Switch Master."
   },
   "master_repair": {
