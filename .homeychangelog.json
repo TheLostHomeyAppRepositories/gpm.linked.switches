@@ -31,5 +31,8 @@
   },
   "1.1.1": {
     "en": "Added the Switch Master driver for scene-style control (1 master + 2 to 9 slaves). Linked Switch groups can now have an optional Primary device that is controlled first, while the rest follow with a small stagger to keep your Zigbee network calm. Commands are debounced to avoid duplicate propagations, and the shared sync log only records failures and recoveries. Device conflict rules are now clearer: a Linked Switch member can also be a controlled switch in a Switch Master, but not both members of the same Linked Switch group. The log page refreshes automatically when new entries arrive, and on-demand re-subscription heals silent listener failures."
+  },
+  "1.1.2": {
+    "en": "Group health checks now run every 10 minutes (previously a constant 30-second poll) plus right after any failed sync, keeping detection responsive with far less background overhead. Devices deleted from Homey are now detected in both Linked Switch and Switch Master groups: Switch Master slaves and Linked Switch members are automatically removed, while a missing Switch Master device is flagged for repair. Detection requires two failures at least 5 minutes apart to avoid false removals from a brief network hiccup. Each group also logs a one-line status summary on startup, visible in diagnostic reports even with debug logging off."
   }
 }

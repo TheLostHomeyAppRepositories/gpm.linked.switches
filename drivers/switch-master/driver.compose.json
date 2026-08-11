@@ -1,6 +1,11 @@
 {
   "name": {
-    "en": "Switch Master"
+    "en": "Switch Master",
+    "nl": "Switch Master",
+    "de": "Switch Master",
+    "fr": "Switch Master",
+    "es": "Switch Master",
+    "it": "Switch Master"
   },
   "images": {
     "small": "/drivers/switch-master/assets/images/small.png",
@@ -24,59 +29,114 @@
   "capabilitiesOptions": {
     "onoff": {
       "title": {
-        "en": "Master Switch"
+        "en": "Master Switch",
+        "nl": "Hoofdschakelaar",
+        "de": "Primärschalter",
+        "fr": "Interrupteur principal",
+        "es": "Interruptor principal",
+        "it": "Interruttore principale"
       },
       "icon": "/drivers/switch-master/assets/icon.svg"
     },
     "master_button.1": {
       "title": {
-        "en": "Master"
+        "en": "Master",
+        "nl": "Hoofd",
+        "de": "Primär",
+        "fr": "Principal",
+        "es": "Principal",
+        "it": "Principale"
       },
       "icon": "/drivers/switch-master/assets/icon-masterswitch.svg"
     },
     "master_button.2": {
       "title": {
-        "en": "Slave 1"
+        "en": "Slave 1",
+        "nl": "Geregeld 1",
+        "de": "Gesteuert 1",
+        "fr": "Contrôlé 1",
+        "es": "Controlado 1",
+        "it": "Controllato 1"
       }
     },
     "master_button.3": {
       "title": {
-        "en": "Slave 2"
+        "en": "Slave 2",
+        "nl": "Geregeld 2",
+        "de": "Gesteuert 2",
+        "fr": "Contrôlé 2",
+        "es": "Controlado 2",
+        "it": "Controllato 2"
       }
     },
     "master_button.4": {
       "title": {
-        "en": "Slave 3"
+        "en": "Slave 3",
+        "nl": "Geregeld 3",
+        "de": "Gesteuert 3",
+        "fr": "Contrôlé 3",
+        "es": "Controlado 3",
+        "it": "Controllato 3"
       }
     },
     "master_button.5": {
       "title": {
-        "en": "Slave 4"
+        "en": "Slave 4",
+        "nl": "Geregeld 4",
+        "de": "Gesteuert 4",
+        "fr": "Contrôlé 4",
+        "es": "Controlado 4",
+        "it": "Controllato 4"
       }
     },
     "master_button.6": {
       "title": {
-        "en": "Slave 5"
+        "en": "Slave 5",
+        "nl": "Geregeld 5",
+        "de": "Gesteuert 5",
+        "fr": "Contrôlé 5",
+        "es": "Controlado 5",
+        "it": "Controllato 5"
       }
     },
     "master_button.7": {
       "title": {
-        "en": "Slave 6"
+        "en": "Slave 6",
+        "nl": "Geregeld 6",
+        "de": "Gesteuert 6",
+        "fr": "Contrôlé 6",
+        "es": "Controlado 6",
+        "it": "Controllato 6"
       }
     },
     "master_button.8": {
       "title": {
-        "en": "Slave 7"
+        "en": "Slave 7",
+        "nl": "Geregeld 7",
+        "de": "Gesteuert 7",
+        "fr": "Contrôlé 7",
+        "es": "Controlado 7",
+        "it": "Controllato 7"
       }
     },
     "master_button.9": {
       "title": {
-        "en": "Slave 8"
+        "en": "Slave 8",
+        "nl": "Geregeld 8",
+        "de": "Gesteuert 8",
+        "fr": "Contrôlé 8",
+        "es": "Controlado 8",
+        "it": "Controllato 8"
       }
     },
     "master_button.10": {
       "title": {
-        "en": "Slave 9"
+        "en": "Slave 9",
+        "nl": "Geregeld 9",
+        "de": "Gesteuert 9",
+        "fr": "Contrôlé 9",
+        "es": "Controlado 9",
+        "it": "Controllato 9"
       }
     }
   },
@@ -110,7 +170,12 @@
       "id": "linked_devices_info",
       "type": "label",
       "label": {
-        "en": "Controlled Switches"
+        "en": "Controlled Switches",
+        "nl": "Geregelde schakelaars",
+        "de": "Gesteuerte Schalter",
+        "fr": "Interrupteurs contrôlés",
+        "es": "Interruptores controlados",
+        "it": "Interruttori controllati"
       },
       "value": "None"
     },
@@ -118,10 +183,20 @@
       "id": "suppress_ms",
       "type": "number",
       "label": {
-        "en": "Echo suppress window (ms)"
+        "en": "Echo suppress window (ms)",
+        "nl": "Echosuppressievenster (ms)",
+        "de": "Echo-Unterdrückungsfenster (ms)",
+        "fr": "Fenêtre de suppression d'écho (ms)",
+        "es": "Ventana de supresión de eco (ms)",
+        "it": "Finestra di soppressione eco (ms)"
       },
       "hint": {
-        "en": "Ignore echoes after sending a command."
+        "en": "Ignore echoes after sending a command.",
+        "nl": "Negeer echo's na het versturen van een commando.",
+        "de": "Echos nach dem Senden eines Befehls ignorieren.",
+        "fr": "Ignorer les échos après l'envoi d'une commande.",
+        "es": "Ignorar los ecos después de enviar un comando.",
+        "it": "Ignora gli echi dopo l'invio di un comando."
       },
       "value": 2000
     }

@@ -66,7 +66,8 @@
     "expected": "Erwartet",
     "actual": "Tatsächlich",
     "show_status_label": "Subgeräte-Status auf Linked Switch-Karten anzeigen:",
-    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:"
+    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:",
+    "debug_logging_label": "Debug-Protokollierung aktivieren:"
   },
   "sync": {
     "virtual_switch": "Virtueller Schalter",

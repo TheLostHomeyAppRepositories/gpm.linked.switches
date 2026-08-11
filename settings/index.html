@@ -88,6 +88,11 @@
     <input type="checkbox" id="show-master-status-toggle" onchange="changeShowMasterStatus(this.checked)" />
   </div>
 
+  <div class="mode-row">
+    <span id="lbl-debug-logging"></span>
+    <input type="checkbox" id="debug-logging-toggle" onchange="changeDebugLogging(this.checked)" />
+  </div>
+
   <div class="actions">
     <button class="action" id="btn-copy" onclick="copyLog()"></button>
     <button class="action danger" id="btn-clear" onclick="clearLog()"></button>
@@ -199,6 +204,10 @@
       Homey.set('show_master_status', !!val, function() {});
     }
 
+    function changeDebugLogging(val) {
+      Homey.set('debug_logging', !!val, function() {});
+    }
+
     function copyLog() {
       if (currentLog.length === 0) return;
       var text = currentLog.map(function(e) {
@@ -237,6 +246,7 @@
       document.getElementById('lbl-loading').textContent = Homey.__('settings.loading');
       document.getElementById('lbl-show-status').textContent = Homey.__('settings.show_status_label');
       document.getElementById('lbl-show-master-status').textContent = Homey.__('settings.show_master_status_label');
+      document.getElementById('lbl-debug-logging').textContent = Homey.__('settings.debug_logging_label');
 
       Homey.get('show_device_status', function(err, val) {
         document.getElementById('show-status-toggle').checked = val === true || val === 'true';
@@ -244,6 +254,10 @@
 
       Homey.get('show_master_status', function(err, val) {
         document.getElementById('show-master-status-toggle').checked = val === true || val === 'true';
+      });
+
+      Homey.get('debug_logging', function(err, val) {
+        document.getElementById('debug-logging-toggle').checked = val === true || val === 'true';
       });
 
       Homey.on('settings.set', function(key, value) {
@@ -255,6 +269,9 @@
         }
         if (key === 'show_master_status') {
           document.getElementById('show-master-status-toggle').checked = value === true || value === 'true';
+        }
+        if (key === 'debug_logging') {
+          document.getElementById('debug-logging-toggle').checked = value === true || value === 'true';
         }
       });
 

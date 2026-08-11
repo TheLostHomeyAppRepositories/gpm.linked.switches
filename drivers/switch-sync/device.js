@@ -6,8 +6,13 @@ const { Device } = require('homey');
 // Covers: Nova retries (~1.5s) + Tuya backoff retries (~2.2s) + Zigbee routing latency (~1s each way)
 const VERIFY_DELAY_EXTRA_MS = 5000;
 
-// Periodic health check interval
-const HEALTH_INTERVAL_MS = 30000;
+// Periodic health check interval — safety net for drift not tied to a propagation
+// (e.g. a listener that dies silently with no one toggling the switch afterward).
+const HEALTH_INTERVAL_MS = 10 * 60 * 1000;
+
+// Minimum time between the first and confirming subscribe failure before a
+// device is treated as a ghost (deleted from Homey) and removed from the group.
+const GHOST_CONFIRM_GAP_MS = 5 * 60 * 1000;
 
 // Discard expected-state entries older than this (stale after user changes things)
 const EXPECTED_STATE_TTL_MS = 5 * 60 * 1000;
@@ -76,6 +81,9 @@ class SwitchSyncDevice extends Device {
     this._callbackTimers = new Map();
     this._lastCallbackValues = new Map();
 
+    // Persistent subscription failures: deviceId → consecutive count
+    this._subscribeFailures = new Map();
+
     // Primary device: controlled first, others follow with stagger
     this._primaryDeviceId = this.getStoreValue('primaryDeviceId') || null;
 
@@ -98,9 +106,11 @@ class SwitchSyncDevice extends Device {
 
     await this._subscribeToDevices();
 
+    // Boot health check, then a periodic safety net (also triggers on-demand via verify / force-resync)
     const jitter = Math.random() * 10000;
     this._healthStartTimer = this.homey.setTimeout(() => {
       this._healthStartTimer = null;
+      this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`));
       this._healthInterval = this.homey.setInterval(
         () => this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`)),
         HEALTH_INTERVAL_MS,
@@ -152,6 +162,7 @@ class SwitchSyncDevice extends Device {
       try { onoffInstance.destroy(); } catch (_) {}
     }
     this._listeners.clear();
+    const prevNames = new Map(this._deviceNames);
     this._deviceNames.clear();
     this._pendingOffline.clear();
     this._expectedStates.clear();
@@ -165,7 +176,7 @@ class SwitchSyncDevice extends Device {
       this._verifyTimer = null;
     }
 
-    const deviceIds = this.getStoreValue('deviceIds') || [];
+    let deviceIds = this.getStoreValue('deviceIds') || [];
     const api = await this._api();
     let missingCount = 0;
 
@@ -193,6 +204,32 @@ class SwitchSyncDevice extends Device {
       }
     }
 
+    // Auto-remove ghost devices that persistently fail subscription. Failures must
+    // be spread across GHOST_CONFIRM_GAP_MS (not a single boot burst) so a transient
+    // API hiccup at startup can't get a real device removed from the group.
+    const ghosts = [];
+    const now = Date.now();
+    for (const deviceId of deviceIds) {
+      if (!this._listeners.has(deviceId)) {
+        const existing = this._subscribeFailures.get(deviceId);
+        if (!existing) {
+          this._subscribeFailures.set(deviceId, { count: 1, firstFailAt: now });
+        } else if (now - existing.firstFailAt >= GHOST_CONFIRM_GAP_MS) {
+          existing.count++;
+          if (existing.count >= 2) ghosts.push(deviceId);
+        }
+      } else {
+        this._subscribeFailures.delete(deviceId);
+      }
+    }
+    for (const deviceId of ghosts) {
+      await this._removeGhostDevice(deviceId, prevNames.get(deviceId));
+    }
+    if (ghosts.length > 0) {
+      deviceIds = this.getStoreValue('deviceIds') || [];
+      missingCount -= ghosts.length;
+    }
+
     if (missingCount > 0) {
       await this.setUnavailable(`${missingCount} ${this.homey.__('error.missing_devices')}`).catch(() => {});
     } else if (this._listeners.size < 2) {
@@ -200,6 +237,9 @@ class SwitchSyncDevice extends Device {
     } else {
       await this.setAvailable().catch(() => {});
     }
+
+    // Unconditional one-line summary — visible in diagnostic reports even with debug off.
+    this.log(`[${this.getName()}] Ready: ${this._listeners.size}/${deviceIds.length} device(s) linked${missingCount > 0 ? `, ${missingCount} missing` : ''}`);
 
     await this._syncSubCapabilities(deviceIds);
 
@@ -234,6 +274,27 @@ class SwitchSyncDevice extends Device {
       this._debug(`boot align: propagating ${targetValue ? 'ON' : 'OFF'} to diverging devices`);
       await this._propagate(targetValue, null);
     }
+  }
+
+  async _removeGhostDevice(deviceId, deviceName) {
+    const deviceIds = (this.getStoreValue('deviceIds') || []).filter(id => id !== deviceId);
+    await this.setStoreValue('deviceIds', deviceIds);
+    const ghostName = deviceName || this._deviceNames.get(deviceId) || deviceId;
+    const remaining = deviceIds.length;
+    const degraded = remaining >= 2;
+    this.error(`[${this.getName()}] Removed ghost device "${ghostName}" — no longer exists in Homey (${remaining} remaining${degraded ? ', group degraded' : ', group condemned'})`);
+    this.homey.app.addSyncReport({
+      timestamp: new Date().toISOString(),
+      group:     this.getName(),
+      trigger:   this.homey.__('sync.health_check'),
+      value:     null,
+      devices:   [{ name: ghostName, synced: false, removed: true }],
+      hasError:  true,
+      important: true,
+      note:      degraded
+        ? `Device removed — group degraded (${remaining} devices remaining, still functional)`
+        : `Device removed — group condemned (${remaining} device(s) remaining, needs repair)`,
+    });
   }
 
   // ─── Sub-capabilities (device names on card) ──────────────────────────────
@@ -648,6 +709,8 @@ class SwitchSyncDevice extends Device {
       this.error(`[${this.getName()}] Post-propagation desync: ${desynced.map(d => d.name).join(', ')}`);
       await this._notifyDesynced(desynced);
       await this._autoHeal(desynced);
+      // On-demand health check — may attempt re-subscription for stale listeners
+      this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`));
     }
 
     // Remove verified entries so the health check can detect any future drift freely.
@@ -658,7 +721,7 @@ class SwitchSyncDevice extends Device {
     }
   }
 
-  // ─── Periodic health check — detect accumulated drift ────────────────────
+  // ─── Health check (periodic + on-demand) — detect accumulated drift ──────
 
   async _verifyGroupHealth() {
     // Expire stale pending-offline entries (device removed or unreachable too long)
@@ -873,6 +936,7 @@ class SwitchSyncDevice extends Device {
     this._expectedStates.clear();
     this._notifiedDesyncs.clear();
     this._activeDesyncs.clear();
+    this._subscribeFailures.clear();
   }
 
 }

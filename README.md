@@ -139,7 +139,7 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 - Rapid duplicate callbacks from the same device are debounced before propagating
 - Devices that are offline when a command is sent are queued and synced when they reconnect
 - On startup, all devices in the group are automatically aligned to the same state
-- A health check runs every 30 seconds to detect accumulated drift
+- A health check runs every 10 minutes, and immediately after a failed sync, to detect accumulated drift
 
 ---
 

@@ -16,6 +16,14 @@ const ERROR_REPORT_DELAY_MS = 2500;
 // group under ~250ms even with 9 slaves.
 const SLAVE_STAGGER_MS = 30;
 
+// Periodic health check interval — safety net that re-subscribes missing
+// master/slave listeners and detects devices removed from Homey.
+const HEALTH_INTERVAL_MS = 10 * 60 * 1000;
+
+// Minimum time between the first and confirming subscribe failure before a
+// device is treated as a ghost (deleted from Homey).
+const GHOST_CONFIRM_GAP_MS = 5 * 60 * 1000;
+
 class SwitchMasterDevice extends Device {
 
   // Development debug logs: use the global app helpers so all drivers share
@@ -96,8 +104,25 @@ class SwitchMasterDevice extends Device {
     // Last seen value per device (for debounce change detection)
     this._lastCallbackValues = new Map();
 
+    // Persistent subscription failures: deviceId → { count, firstFailAt, reported? }
+    this._subscribeFailures = new Map();
+    // Cooldown for on-demand re-subscription (ms)
+    this._resubscribeCooldown = 60 * 1000;
+    this._lastResubscribeAt = 0;
+
     this.registerCapabilityListener('onoff', this._onVirtualMasterChanged.bind(this));
     await this._subscribeToDevices();
+
+    // Boot health check, then a periodic safety net
+    const jitter = Math.random() * 10000;
+    this._healthStartTimer = this.homey.setTimeout(() => {
+      this._healthStartTimer = null;
+      this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`));
+      this._healthInterval = this.homey.setInterval(
+        () => this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`)),
+        HEALTH_INTERVAL_MS,
+      );
+    }, jitter);
   }
 
   async reloadConfiguration() {
@@ -118,13 +143,15 @@ class SwitchMasterDevice extends Device {
       try { onoffInstance.destroy(); } catch (_) {}
     }
 
+    const prevNames = new Map(this._deviceNames);
+
     this._master = null;
     this._slaves.clear();
     this._deviceNames.clear();
     this._suppress.clear();
 
     const masterDeviceId = this.getStoreValue('masterDeviceId');
-    const slaveIds = this.getStoreValue('deviceIds') || [];
+    let slaveIds = this.getStoreValue('deviceIds') || [];
     const api = await this._api();
     let missingCount = 0;
 
@@ -170,6 +197,49 @@ class SwitchMasterDevice extends Device {
       }
     }
 
+    // Ghost detection — failures must be spread across GHOST_CONFIRM_GAP_MS (not a
+    // single boot burst) so a transient API hiccup can't remove a real device.
+    const now = Date.now();
+
+    // Master can't be auto-removed (the group requires one) — just warn once.
+    if (masterDeviceId && !this._master) {
+      const existing = this._subscribeFailures.get(masterDeviceId);
+      if (!existing) {
+        this._subscribeFailures.set(masterDeviceId, { count: 1, firstFailAt: now, reported: false });
+      } else if (!existing.reported && now - existing.firstFailAt >= GHOST_CONFIRM_GAP_MS) {
+        existing.count++;
+        if (existing.count >= 2) {
+          existing.reported = true;
+          this._reportGhostMaster(prevNames.get(masterDeviceId));
+        }
+      }
+    } else if (masterDeviceId) {
+      this._subscribeFailures.delete(masterDeviceId);
+    }
+
+    // Slaves can be auto-removed, same as a Linked Switch group member.
+    const ghostSlaves = [];
+    for (const deviceId of slaveIds) {
+      if (!this._slaves.has(deviceId)) {
+        const existing = this._subscribeFailures.get(deviceId);
+        if (!existing) {
+          this._subscribeFailures.set(deviceId, { count: 1, firstFailAt: now });
+        } else if (now - existing.firstFailAt >= GHOST_CONFIRM_GAP_MS) {
+          existing.count++;
+          if (existing.count >= 2) ghostSlaves.push(deviceId);
+        }
+      } else {
+        this._subscribeFailures.delete(deviceId);
+      }
+    }
+    for (const deviceId of ghostSlaves) {
+      await this._removeGhostSlave(deviceId, prevNames.get(deviceId));
+    }
+    if (ghostSlaves.length > 0) {
+      slaveIds = this.getStoreValue('deviceIds') || [];
+      missingCount -= ghostSlaves.length;
+    }
+
     if (missingCount > 0) {
       await this.setUnavailable(`${missingCount} ${this.homey.__('error.missing_devices')}`).catch(() => {});
     } else if (!this._master) {
@@ -182,11 +252,71 @@ class SwitchMasterDevice extends Device {
       await this.setAvailable().catch(() => {});
     }
 
+    // Unconditional one-line summary — visible in diagnostic reports even with debug off.
+    this.log(`[${this.getName()}] Ready: master ${this._master ? 'ok' : 'MISSING'}, ${this._slaves.size}/${slaveIds.length} slave(s) linked${missingCount > 0 ? `, ${missingCount} missing` : ''}`);
+
     await this._syncControlCapabilities(masterDeviceId, slaveIds);
     await this._syncStatusCapabilities(masterDeviceId, slaveIds);
     await this._updateLinkedDevicesSetting();
     await this._setVirtualMasterValue(this._getPhysicalMasterValue());
     await this._syncMasterFromUnanimity();
+  }
+
+  async _removeGhostSlave(deviceId, deviceName) {
+    const slaveIds = (this.getStoreValue('deviceIds') || []).filter(id => id !== deviceId);
+    await this.setStoreValue('deviceIds', slaveIds);
+    const ghostName = deviceName || this._deviceNames.get(deviceId) || deviceId;
+    const remaining = slaveIds.length;
+    const degraded = remaining >= MIN_SLAVES;
+    this.error(`[${this.getName()}] Removed ghost slave "${ghostName}" — no longer exists in Homey (${remaining} remaining${degraded ? ', group degraded' : ', group condemned'})`);
+    this.homey.app.addSyncReport({
+      timestamp: new Date().toISOString(),
+      group:     this.getName(),
+      trigger:   this.homey.__('sync.health_check'),
+      value:     null,
+      devices:   [{ name: ghostName, synced: false, removed: true }],
+      hasError:  true,
+      important: true,
+      note:      degraded
+        ? `Slave removed — group degraded (${remaining} slave(s) remaining, still functional)`
+        : `Slave removed — group condemned (${remaining} slave(s) remaining, needs repair)`,
+    });
+  }
+
+  // Master can't be auto-removed (the group is defined by it) — report once so it
+  // shows in the Desync Log, and rely on setUnavailable to keep the card flagged.
+  _reportGhostMaster(deviceName) {
+    const masterDeviceId = this.getStoreValue('masterDeviceId');
+    const ghostName = deviceName || this._deviceNames.get(masterDeviceId) || masterDeviceId;
+    this.error(`[${this.getName()}] Master "${ghostName}" no longer exists in Homey — group needs repair`);
+    this.homey.app.addSyncReport({
+      timestamp: new Date().toISOString(),
+      group:     this.getName(),
+      trigger:   this.homey.__('sync.health_check'),
+      value:     null,
+      devices:   [{ name: ghostName, synced: false, removed: true }],
+      hasError:  true,
+      important: true,
+      note:      'Master device missing — group needs repair',
+    });
+  }
+
+  // ─── Health check (periodic + boot) — re-subscribe missing listeners ─────
+
+  async _verifyGroupHealth() {
+    const now = Date.now();
+    const canResubscribe = now - this._lastResubscribeAt > this._resubscribeCooldown;
+    if (!canResubscribe) return;
+
+    const masterDeviceId = this.getStoreValue('masterDeviceId');
+    const masterMissing = Boolean(masterDeviceId) && !this._master;
+    const missingSlaves = (this.getStoreValue('deviceIds') || []).filter(id => !this._slaves.has(id));
+
+    if (masterMissing || missingSlaves.length > 0) {
+      this._lastResubscribeAt = now;
+      this.error(`[${this.getName()}] Re-subscribing missing listener(s)`);
+      await this.reloadConfiguration();
+    }
   }
 
   async _syncControlCapabilities(masterDeviceId, slaveIds) {
@@ -568,6 +698,9 @@ class SwitchMasterDevice extends Device {
   }
 
   async onDeleted() {
+    if (this._healthStartTimer) this.homey.clearTimeout(this._healthStartTimer);
+    if (this._healthInterval)   this.homey.clearInterval(this._healthInterval);
+
     if (this._master && this._master.onoffInstance) {
       try { this._master.onoffInstance.destroy(); } catch (_) {}
     }
@@ -583,6 +716,7 @@ class SwitchMasterDevice extends Device {
     for (const { timer } of this._pendingErrorReports.values()) {
       if (timer) this.homey.clearTimeout(timer);
     }
+    this._subscribeFailures.clear();
   }
 
 }

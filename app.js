@@ -3,16 +3,12 @@
 const Homey = require('homey');
 const { HomeyAPI } = require('homey-api');
 
-// Set to true during development to get extra debug logs.
-// Change back to false before building for production.
-const DEBUG = false;
-
 module.exports = class SwitchSyncApp extends Homey.App {
 
-  // Global development debug toggle.
-  // Edit the constant above, or set GPM_LINKED_SWITCHES_DEBUG=true for tests.
+  // Global debug toggle — controlled by "Enable Debug Logging" on the app's
+  // Configure page, or GPM_LINKED_SWITCHES_DEBUG=true for local CLI runs.
   _isDebugEnabled() {
-    if (DEBUG) return true;
+    if (this.homey.settings.get('debug_logging') === true) return true;
     const value = process.env.GPM_LINKED_SWITCHES_DEBUG;
     return value === '1' || value === 'true' || value === 'yes' || value === 'on';
   }
@@ -40,9 +36,6 @@ module.exports = class SwitchSyncApp extends Homey.App {
 
   async onInit() {
     this.log('Switch Sync app initialized');
-    if (this._isDebugEnabled()) {
-      this.log('Development debug logging is enabled');
-    }
     this._homeyAPI     = null;
     this._syncLog      = null;
     this._syncLogTimer = null;
@@ -52,6 +45,13 @@ module.exports = class SwitchSyncApp extends Homey.App {
     }
     if (this.homey.settings.get('show_master_status') === undefined) {
       this.homey.settings.set('show_master_status', 'false');
+    }
+    if (this.homey.settings.get('debug_logging') === undefined) {
+      this.homey.settings.set('debug_logging', false);
+    }
+
+    if (this._isDebugEnabled()) {
+      this.log('Debug logging is enabled');
     }
 
     // Avoid false-positive MaxListenersExceededWarning caused by Homey SDK
