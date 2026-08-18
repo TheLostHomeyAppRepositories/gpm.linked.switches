@@ -80,5 +80,11 @@
     "name": "Gabriel Pedrosa Machado",
     "email": "g.machado@me.com"
   },
-  "source": "https://github.com/gpmachado/gpm.linked.switches"
+  "source": "https://github.com/gpmachado/gpm.linked.switches",
+  "homepage": "https://github.com/gpmachado/gpm.linked.switches",
+  "support": "https://github.com/gpmachado/gpm.linked.switches/issues",
+  "bugs": {
+    "url": "https://github.com/gpmachado/gpm.linked.switches/issues"
+  },
+  "homeyCommunityTopicId": 158431
 }
