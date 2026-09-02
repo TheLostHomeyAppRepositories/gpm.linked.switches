@@ -102,6 +102,10 @@ class SwitchSyncDevice extends Device {
     // Single verify timer (reset on each propagation, fires once after settle)
     this._verifyTimer = null;
 
+    // Serializes _propagate/_subscribeToDevices so overlapping triggers
+    // (rapid toggles, concurrent re-subscribes) never interleave.
+    this._opQueue = null;
+
     this.registerCapabilityListener('onoff', this._onOwnOnOff.bind(this));
 
     await this._subscribeToDevices();
@@ -125,6 +129,16 @@ class SwitchSyncDevice extends Device {
 
   async _api() {
     return this.homey.app.getHomeyAPI();
+  }
+
+  // Runs fn() after any previously-enqueued operation settles, so two triggers
+  // (e.g. two rapid toggles, or a toggle racing a re-subscribe) never run their
+  // state-mutating bodies concurrently. A rejected fn() doesn't stall the queue.
+  _enqueue(fn) {
+    const prev = this._opQueue || Promise.resolve();
+    const next = prev.catch(() => {}).then(fn);
+    this._opQueue = next.catch(() => {});
+    return next;
   }
 
   // Debounce rapid duplicate capability callbacks. If the same device fires
@@ -158,6 +172,10 @@ class SwitchSyncDevice extends Device {
   // ─── Subscribe ────────────────────────────────────────────────────────────
 
   async _subscribeToDevices() {
+    return this._enqueue(() => this._subscribeToDevicesNow());
+  }
+
+  async _subscribeToDevicesNow() {
     for (const { onoffInstance } of this._listeners.values()) {
       try { onoffInstance.destroy(); } catch (_) {}
     }
@@ -272,7 +290,9 @@ class SwitchSyncDevice extends Device {
     const hasDiverging = [...this._listeners.values()].some(({ onoffInstance }) => onoffInstance.value !== targetValue);
     if (hasDiverging) {
       this._debug(`boot align: propagating ${targetValue ? 'ON' : 'OFF'} to diverging devices`);
-      await this._propagate(targetValue, null);
+      // Already inside the op queue (called from _subscribeToDevices) — run directly,
+      // not through _propagate, to avoid enqueueing onto ourselves and deadlocking.
+      await this._propagateNow(targetValue, null);
     }
   }
 
@@ -559,6 +579,12 @@ class SwitchSyncDevice extends Device {
     this._lastPropagatedValue = value;
     setImmediate(() => { this._lastPropagatedValue = null; });
 
+    // Queued: a second propagate (e.g. a rapid second toggle) waits for this one
+    // to fully finish before reading/mutating shared state — no interleaving.
+    return this._enqueue(() => this._propagateNow(value, sourceId));
+  }
+
+  async _propagateNow(value, sourceId) {
     // Store context for the verify report
     const triggerName = sourceId
       ? (this._deviceNames.get(sourceId) || sourceId)

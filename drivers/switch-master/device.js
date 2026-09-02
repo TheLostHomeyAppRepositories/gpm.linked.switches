@@ -110,6 +110,10 @@ class SwitchMasterDevice extends Device {
     this._resubscribeCooldown = 60 * 1000;
     this._lastResubscribeAt = 0;
 
+    // Serializes _subscribeToDevices so overlapping triggers (concurrent
+    // re-subscribes) never interleave and corrupt shared Maps.
+    this._opQueue = null;
+
     this.registerCapabilityListener('onoff', this._onVirtualMasterChanged.bind(this));
     await this._subscribeToDevices();
 
@@ -134,7 +138,21 @@ class SwitchMasterDevice extends Device {
     return this.homey.app.getHomeyAPI();
   }
 
+  // Runs fn() after any previously-enqueued operation settles, so two triggers
+  // never run their state-mutating bodies concurrently. A rejected fn() doesn't
+  // stall the queue.
+  _enqueue(fn) {
+    const prev = this._opQueue || Promise.resolve();
+    const next = prev.catch(() => {}).then(fn);
+    this._opQueue = next.catch(() => {});
+    return next;
+  }
+
   async _subscribeToDevices() {
+    return this._enqueue(() => this._subscribeToDevicesNow());
+  }
+
+  async _subscribeToDevicesNow() {
     this._debug('subscribe', { master: this.getStoreValue('masterDeviceId') || 'none', slaveCount: (this.getStoreValue('deviceIds') || []).length });
     if (this._master && this._master.onoffInstance) {
       try { this._master.onoffInstance.destroy(); } catch (_) {}
