@@ -291,6 +291,15 @@
       })
       .then(function(devices) {
         availableDevices = devices || [];
+        // Drop any previously-saved device that no longer exists in Homey (e.g.
+        // deleted and re-paired with a new ID) — it can never be unchecked since
+        // it has no row to render, so it must be cleared here instead.
+        var validIds = {};
+        availableDevices.forEach(function(d) { validIds[d.id] = true; });
+        Object.keys(selectedSlaves).forEach(function(id) {
+          if (!validIds[id]) delete selectedSlaves[id];
+        });
+        if (masterId && !validIds[masterId]) masterId = null;
         buildZoneOptions('filter-zone', availableDevices);
         applyFilter();
         document.getElementById('btn-save').disabled = false;
