@@ -32,7 +32,9 @@
     "err_save": "Error saving binding.",
     "err_load": "Error loading configuration.",
     "err_device_conflict": "One or more devices are already used by: \"{names}\". Use Repair on that group to edit it, or delete it first.",
-    "err_min2": "Select at least 2 devices."
+    "err_min2": "Select at least 2 devices.",
+    "selected_label": "Currently Selected",
+    "not_found": "no longer found"
   },
   "device_settings": {
     "section_devices": "Linked Switches",

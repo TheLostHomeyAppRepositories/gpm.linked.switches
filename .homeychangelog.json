@@ -39,6 +39,6 @@
     "en": "Fixed a race condition where rapid consecutive toggles could interleave and corrupt sync state — state-mutating operations are now serialized per group. Debug logging is now a toggle on the app's Configure page instead of a code setting, and the Switch Master driver is now fully translated."
   },
   "1.1.4": {
-    "en": "Fixed Repair silently re-saving a device that no longer exists in Homey (it could never be unchecked in the form), which kept a group stuck on \"missing devices\" even after repairing it with the replacement."
+    "en": "Fixed Repair silently re-saving a device that no longer exists in Homey (it could never be unchecked in the form), which kept a group stuck on \"missing devices\" even after repairing it with the replacement. Repair now shows a \"Currently Selected\" summary at the top — including the last-known name of any device that's gone missing — so you don't have to hunt through a long device list to see what's already configured."
   }
 }

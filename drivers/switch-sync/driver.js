@@ -150,6 +150,7 @@ class SwitchSyncDriver extends Driver {
       return {
         deviceIds: device.getStoreValue('deviceIds') || [],
         primaryDeviceId: device.getStoreValue('primaryDeviceId') || null,
+        deviceNames: device.getStoreValue('deviceNames') || {},
       };
     });
 

@@ -32,7 +32,9 @@
     "err_save": "Errore durante il salvataggio del gruppo.",
     "err_load": "Errore durante il caricamento della configurazione.",
     "err_device_conflict": "Uno o più dispositivi sono già utilizzati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, o eliminalo prima.",
-    "err_min2": "Seleziona almeno 2 dispositivi."
+    "err_min2": "Seleziona almeno 2 dispositivi.",
+    "selected_label": "Attualmente selezionato",
+    "not_found": "non più trovato"
   },
   "device_settings": {
     "section_devices": "Interruttori collegati",

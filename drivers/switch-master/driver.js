@@ -151,6 +151,7 @@ class SwitchMasterDriver extends Driver {
       return {
         masterDeviceId: device.getStoreValue('masterDeviceId') || null,
         deviceIds: device.getStoreValue('deviceIds') || [],
+        deviceNames: device.getStoreValue('deviceNames') || {},
       };
     });
 

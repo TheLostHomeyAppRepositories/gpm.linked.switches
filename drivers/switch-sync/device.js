@@ -198,11 +198,16 @@ class SwitchSyncDevice extends Device {
     const api = await this._api();
     let missingCount = 0;
 
+    // Last-known name per device, kept even after it goes missing — lets Repair
+    // show what a dead ID used to be, instead of it just silently vanishing.
+    const persistedNames = this.getStoreValue('deviceNames') || {};
+
     for (const deviceId of deviceIds) {
       try {
         const device = await api.devices.getDevice({ id: deviceId });
         const name = device.name;
         this._deviceNames.set(deviceId, name);
+        persistedNames[deviceId] = name;
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
           this._lastListenerUpdate.set(deviceId, Date.now());
@@ -247,6 +252,13 @@ class SwitchSyncDevice extends Device {
       deviceIds = this.getStoreValue('deviceIds') || [];
       missingCount -= ghosts.length;
     }
+
+    // Prune names for devices no longer part of this group, then persist.
+    const keptIds = new Set(deviceIds);
+    for (const id of Object.keys(persistedNames)) {
+      if (!keptIds.has(id)) delete persistedNames[id];
+    }
+    await this.setStoreValue('deviceNames', persistedNames).catch(() => {});
 
     if (missingCount > 0) {
       await this.setUnavailable(`${missingCount} ${this.homey.__('error.missing_devices')}`).catch(() => {});

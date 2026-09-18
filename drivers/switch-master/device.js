@@ -173,11 +173,16 @@ class SwitchMasterDevice extends Device {
     const api = await this._api();
     let missingCount = 0;
 
+    // Last-known name per device, kept even after it goes missing — lets Repair
+    // show what a dead ID used to be, instead of it just silently vanishing.
+    const persistedNames = this.getStoreValue('deviceNames') || {};
+
     if (masterDeviceId) {
       try {
         const device = await api.devices.getDevice({ id: masterDeviceId });
         const name = device.name;
         this._deviceNames.set(masterDeviceId, name);
+        persistedNames[masterDeviceId] = name;
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
           this._debug('callback in', { role: 'master', device: name, value, debounced: true });
           this._debouncedCallback(masterDeviceId, value, debouncedValue => {
@@ -198,6 +203,7 @@ class SwitchMasterDevice extends Device {
         const device = await api.devices.getDevice({ id: deviceId });
         const name = device.name;
         this._deviceNames.set(deviceId, name);
+        persistedNames[deviceId] = name;
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
           this._debug('callback in', { role: 'slave', device: name, deviceId, value, debounced: true });
@@ -257,6 +263,13 @@ class SwitchMasterDevice extends Device {
       slaveIds = this.getStoreValue('deviceIds') || [];
       missingCount -= ghostSlaves.length;
     }
+
+    // Prune names for devices no longer part of this group, then persist.
+    const keptIds = new Set(masterDeviceId ? [masterDeviceId, ...slaveIds] : slaveIds);
+    for (const id of Object.keys(persistedNames)) {
+      if (!keptIds.has(id)) delete persistedNames[id];
+    }
+    await this.setStoreValue('deviceNames', persistedNames).catch(() => {});
 
     if (missingCount > 0) {
       await this.setUnavailable(`${missingCount} ${this.homey.__('error.missing_devices')}`).catch(() => {});

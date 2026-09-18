@@ -32,7 +32,9 @@
     "err_save": "Fehler beim Speichern der Gruppe.",
     "err_load": "Fehler beim Laden der Konfiguration.",
     "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparatur für diese Gruppe oder lösche sie zuerst.",
-    "err_min2": "Bitte mindestens 2 Geräte auswählen."
+    "err_min2": "Bitte mindestens 2 Geräte auswählen.",
+    "selected_label": "Aktuell ausgewählt",
+    "not_found": "nicht mehr gefunden"
   },
   "device_settings": {
     "section_devices": "Verknüpfte Schalter",

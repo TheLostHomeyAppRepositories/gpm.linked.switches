@@ -32,7 +32,9 @@
     "err_save": "Fout bij opslaan van de groep.",
     "err_load": "Fout bij laden van de configuratie.",
     "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Reparatie op die groep om deze te bewerken, of verwijder deze eerst.",
-    "err_min2": "Selecteer minimaal 2 apparaten."
+    "err_min2": "Selecteer minimaal 2 apparaten.",
+    "selected_label": "Huidig geselecteerd",
+    "not_found": "niet meer gevonden"
   },
   "device_settings": {
     "section_devices": "Gekoppelde schakelaars",

@@ -116,6 +116,35 @@
 
     .hint { font-size: 12px; color: #999; margin-bottom: 8px; }
 
+    #selected-section { margin-bottom: 16px; }
+    #selected-section .field-label { margin-bottom: 6px; }
+    #selected-list {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .sel-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .sel-item:last-child { border-bottom: none; }
+    .sel-item.missing .device-name { color: #b45309; }
+    .sel-item.missing .device-zone { color: #b45309; }
+    .sel-remove {
+      width: auto;
+      padding: 2px 8px;
+      margin: 0 0 0 8px;
+      background: transparent;
+      color: #aaa;
+      border: none;
+      font-size: 18px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .sel-remove:hover { color: #e53e3e; background: transparent; }
+
     #error-msg {
       color: #e53e3e;
       font-size: 13px;
@@ -154,6 +183,11 @@
   <h2 id="t-title"></h2>
   <p class="subtitle" id="device-count"></p>
 
+  <div id="selected-section" style="display:none">
+    <label class="field-label" id="t-selected-label"></label>
+    <div id="selected-list"></div>
+  </div>
+
   <label class="field-label" id="t-devices-label"></label>
   <p class="hint" id="t-hint"></p>
   <p class="hint" id="t-primary-hint"></p>
@@ -177,6 +211,8 @@
     var availableDevices = [];
     var selectedIds = {};
     var primaryId = null;
+    var knownNames = {};
+    var missingEntries = []; // [{ id, name }] — selected before, no longer found
 
     var __ = function(k) { try { return Homey.__(k) || k; } catch(e) { return k; } };
 
@@ -191,6 +227,7 @@
 
     function initTranslations() {
       document.getElementById('t-title').textContent         = __('repair.title');
+      document.getElementById('t-selected-label').textContent = __('repair.selected_label');
       document.getElementById('t-devices-label').textContent = __('wizard.devices_to_sync');
       document.getElementById('t-hint').textContent          = __('wizard.hint_min2');
       document.getElementById('t-primary-hint').textContent  = __('wizard.primary_hint');
@@ -264,6 +301,52 @@
       }
       updateCount();
       applyFilter();
+      renderSelected();
+    }
+
+    // "Currently Selected" summary — lets you see (and remove) the whole
+    // current selection without scrolling a list that can hold 100+ devices,
+    // and shows devices that used to be selected but no longer exist.
+    function renderSelected() {
+      var section = document.getElementById('selected-section');
+      var list = document.getElementById('selected-list');
+
+      var validSelected = Object.keys(selectedIds)
+        .map(function(id) { return availableDevices.filter(function(d) { return d.id === id; })[0]; })
+        .filter(Boolean);
+
+      if (validSelected.length === 0 && missingEntries.length === 0) {
+        section.style.display = 'none';
+        list.innerHTML = '';
+        return;
+      }
+      section.style.display = '';
+
+      var rows = validSelected.map(function(d) {
+        var primaryBadge = primaryId === d.id ? ' &middot; ' + escapeHtml(__('wizard.primary_label')) : '';
+        var zoneBadge = d.zoneName ? '<span class="device-zone">' + escapeHtml(d.zoneName) + '</span>' : '';
+        return '<div class="sel-item">' +
+          '<span class="device-name">' + escapeHtml(d.name) + primaryBadge + '</span>' + zoneBadge +
+          '<button type="button" class="sel-remove" onclick="removeSelected(\'' + escapeHtml(d.id) + '\')">&times;</button>' +
+          '</div>';
+      }).join('');
+
+      var missingRows = missingEntries.map(function(m) {
+        return '<div class="sel-item missing">' +
+          '<span class="device-name">&#9888; ' + escapeHtml(m.name) + '</span>' +
+          '<span class="device-zone">' + escapeHtml(__('repair.not_found')) + '</span>' +
+          '</div>';
+      }).join('');
+
+      list.innerHTML = rows + missingRows;
+    }
+
+    function removeSelected(id) {
+      delete selectedIds[id];
+      if (primaryId === id) primaryId = null;
+      updateCount();
+      applyFilter();
+      renderSelected();
     }
 
     function updateCount() {
@@ -286,6 +369,7 @@
       }
       updateCount();
       applyFilter();
+      renderSelected();
     }
 
     function saveBinding() {
@@ -309,6 +393,7 @@
       .then(function(config) {
         config = config || {};
         primaryId = config.primaryDeviceId || null;
+        knownNames = config.deviceNames || {};
         (config.deviceIds || []).forEach(function(id) { selectedIds[id] = true; });
         return Homey.emit('get_available_devices', null);
       })
@@ -316,15 +401,21 @@
         availableDevices = devices || [];
         // Drop any previously-saved device that no longer exists in Homey (e.g.
         // deleted and re-paired with a new ID) — it can never be unchecked since
-        // it has no row to render, so it must be cleared here instead.
+        // it has no row to render, so it must be cleared here instead. Keep its
+        // last-known name so "Currently Selected" can still show what it was.
         var validIds = {};
         availableDevices.forEach(function(d) { validIds[d.id] = true; });
+        missingEntries = [];
         Object.keys(selectedIds).forEach(function(id) {
-          if (!validIds[id]) delete selectedIds[id];
+          if (!validIds[id]) {
+            missingEntries.push({ id: id, name: knownNames[id] || id });
+            delete selectedIds[id];
+          }
         });
         if (primaryId && !validIds[primaryId]) primaryId = null;
         buildZoneOptions(availableDevices);
         renderDevices(availableDevices);
+        renderSelected();
         document.getElementById('btn-save').disabled = false;
       })
       .catch(function(err) {
