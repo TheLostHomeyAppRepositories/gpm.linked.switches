@@ -19,21 +19,6 @@ const PENDING_OFFLINE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 class SwitchSyncDevice extends LinkedGroupDevice {
 
-  // Use the global app debug toggle. The per-device setting is kept for compatibility.
-  _isDebugEnabled() {
-    const appDebug = this.homey && this.homey.app && typeof this.homey.app._isDebugEnabled === 'function'
-      ? this.homey.app._isDebugEnabled()
-      : false;
-    return appDebug || this.getSetting('debug') === true || this.getSetting('debug') === 'true';
-  }
-
-  _debug(tag, payload) {
-    if (this._isDebugEnabled()) {
-      if (payload !== undefined) this.log(`[${this.getName()}][debug][${tag}]`, payload);
-      else this.log(`[${this.getName()}][debug][${tag}]`);
-    }
-  }
-
   async onInit() {
     this._debug('init', { message: 'device initialized' });
 
@@ -425,21 +410,20 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
     const now        = Date.now();
     const suppressMs = this.getSetting('suppress_ms') || 2000;
-    const isDebug    = this._isDebugEnabled();
     const COOLDOWN   = 20000;
 
     for (const { deviceId, name, expected } of desynced) {
       // Skip if a propagation is still in flight for this device
       const exp = this._expectedStates.get(deviceId);
       if (exp && !exp.verified) {
-        if (isDebug) this._debug(`auto-heal skipped "${name}" — propagation in flight`);
+        this._debug(`auto-heal skipped "${name}" — propagation in flight`);
         continue;
       }
 
       // Cooldown: don't retry the same device within 20s
       const lastHeal = this._healCooldowns.get(deviceId) || 0;
       if (now - lastHeal < COOLDOWN) {
-        if (isDebug) this._debug(`auto-heal skipped "${name}" — cooldown`);
+        this._debug(`auto-heal skipped "${name}" — cooldown`);
         continue;
       }
 
@@ -448,7 +432,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
       this._healCooldowns.set(deviceId, now);
       this._debug(`auto-heal: "${name}" -> ${expected ? 'ON' : 'OFF'}`);
-      await this._setDeviceValue(entry.device, deviceId, expected, suppressMs, isDebug);
+      await this._setDeviceValue(entry.device, deviceId, expected, suppressMs);
     }
   }
 
@@ -464,22 +448,21 @@ class SwitchSyncDevice extends LinkedGroupDevice {
   // ─── Incoming: linked device changed (physical or remote) ─────────────────
 
   async _onLinkedDeviceChanged(sourceId, sourceName, value) {
-    const isDebug = this._isDebugEnabled();
 
     // Device was offline during propagation and just reconnected
     const pendingEntry = this._pendingOffline.get(sourceId);
     if (pendingEntry !== undefined) {
       const { value: pendingValue } = pendingEntry;
       if (pendingValue === value) {
-        if (isDebug) this._debug(`"${sourceName}" back online already in sync (${value})`);
+        this._debug(`"${sourceName}" back online already in sync (${value})`);
         this._pendingOffline.delete(sourceId);
       } else {
-        if (isDebug) this._debug(`"${sourceName}" back online, syncing to ${pendingValue}`);
+        this._debug(`"${sourceName}" back online, syncing to ${pendingValue}`);
         this._pendingOffline.delete(sourceId);
         const entry = this._listeners.get(sourceId);
         if (entry) {
           const suppressMs = this.getSetting('suppress_ms') || 2000;
-          await this._setDeviceValue(entry.device, sourceId, pendingValue, suppressMs, isDebug);
+          await this._setDeviceValue(entry.device, sourceId, pendingValue, suppressMs);
         }
         return;
       }
@@ -488,7 +471,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     // Echo suppression — callback caused by our own command
     const suppressed = this._suppress.get(sourceId);
     if (suppressed && suppressed.value === value) {
-      if (isDebug) this._debug(`echo suppressed from "${sourceName}" (${value})`);
+      this._debug(`echo suppressed from "${sourceName}" (${value})`);
 
       // Echo IS the confirmation — mark expected state as verified and record timing
       const exp = this._expectedStates.get(sourceId);
@@ -500,7 +483,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
       return;
     }
 
-    if (isDebug) this._debug(`"${sourceName}" -> ${value ? 'ON' : 'OFF'}`);
+    this._debug(`"${sourceName}" -> ${value ? 'ON' : 'OFF'}`);
 
     // Mark as verified if it matches expected (late confirmation after suppress window)
     const exp = this._expectedStates.get(sourceId);
@@ -551,7 +534,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     const deviceIds  = this.getStoreValue('deviceIds') || [];
     const primaryId  = this._primaryDeviceId;
     const suppressMs = this.getSetting('suppress_ms') || 2000;
-    const isDebug    = this._isDebugEnabled();
 
     // Order: primary first (if set and not the source), then the rest.
     const orderedIds = [...deviceIds];
@@ -598,7 +580,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
       // Register expectation — echo callback will mark verified + set syncedAt
       this._expectedStates.set(deviceId, { value, timestamp: Date.now(), verified: false });
 
-      const result = await this._setDeviceValue(device, deviceId, value, suppressMs, isDebug);
+      const result = await this._setDeviceValue(device, deviceId, value, suppressMs);
       if (!result.ok) {
         const exp = this._expectedStates.get(deviceId);
         if (exp) exp.errorMessage = result.errorMessage;
@@ -620,7 +602,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
   // ─── Set a single device value with echo suppression ─────────────────────
 
-  async _setDeviceValue(device, deviceId, value, suppressMs, isDebug) {
+  async _setDeviceValue(device, deviceId, value, suppressMs) {
     const existing = this._suppress.get(deviceId);
     if (existing) this.homey.clearTimeout(existing.timer);
     const timer = this.homey.setTimeout(() => this._suppress.delete(deviceId), suppressMs);

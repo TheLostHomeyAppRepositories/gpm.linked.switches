@@ -114,18 +114,6 @@
         </label>
       </div>
 
-      <div class="setting-row">
-        <div>
-          <div class="setting-label" id="lbl-debug"></div>
-          <div class="setting-hint" id="hint-debug"></div>
-        </div>
-        <label class="toggle-wrap">
-          <input type="checkbox" id="debug" />
-          <div class="toggle-track"></div>
-          <div class="toggle-thumb"></div>
-        </label>
-      </div>
-
     </div>
   </div>
 
@@ -171,12 +159,10 @@
         Homey.get('linked_devices_info'),
         Homey.get('suppress_ms'),
         Homey.get('notify_on_desync'),
-        Homey.get('debug'),
       ]).then(function(values) {
         renderDevices(values[0]);
         if (values[1] != null) document.getElementById('suppress_ms').value = values[1];
         if (values[2] != null) document.getElementById('notify_on_desync').checked = !!values[2];
-        if (values[3] != null) document.getElementById('debug').checked = !!values[3];
       }).catch(function() {
         Homey.get('linked_devices_info').then(renderDevices).catch(function() {});
       });
@@ -185,7 +171,6 @@
     function save() {
       var suppressMs = parseInt(document.getElementById('suppress_ms').value, 10);
       var notify     = document.getElementById('notify_on_desync').checked;
-      var debug      = document.getElementById('debug').checked;
 
       if (isNaN(suppressMs) || suppressMs < 500 || suppressMs > 10000) {
         document.getElementById('feedback').style.color = '#e53e3e';
@@ -200,7 +185,6 @@
       Promise.all([
         Homey.set('suppress_ms', suppressMs),
         Homey.set('notify_on_desync', notify),
-        Homey.set('debug', debug),
       ]).then(function() {
         document.getElementById('feedback').style.color = '#34c759';
         document.getElementById('feedback').textContent = __('device_settings.saved');
@@ -230,8 +214,6 @@
       document.getElementById('hint-suppress').textContent       = Homey.__('device_settings.suppress_hint');
       document.getElementById('lbl-notify').textContent          = Homey.__('device_settings.notify_label');
       document.getElementById('hint-notify').textContent         = Homey.__('device_settings.notify_hint');
-      document.getElementById('lbl-debug').textContent           = Homey.__('device_settings.debug_label');
-      document.getElementById('hint-debug').textContent          = Homey.__('device_settings.debug_hint');
       document.getElementById('save-btn').textContent            = Homey.__('device_settings.save');
 
       load();

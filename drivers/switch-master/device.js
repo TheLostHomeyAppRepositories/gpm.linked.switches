@@ -11,14 +11,6 @@ const ERROR_REPORT_DELAY_MS = 2500;
 
 class SwitchMasterDevice extends LinkedGroupDevice {
 
-  // Development debug logs: use the global app helpers so all drivers share
-  // the same toggle (`.debug` file or GPM_LINKED_SWITCHES_DEBUG=true).
-  _debug(tag, payload) {
-    if (this.homey && this.homey.app && typeof this.homey.app.debugLog === 'function') {
-      this.homey.app.debugLog(tag, { group: this.getName(), ...payload });
-    }
-  }
-
   // Cancel a delayed error report if the device state has just been confirmed.
   _cancelPendingErrorReport(deviceId, value) {
     const pending = this._pendingErrorReports.get(deviceId);
@@ -340,7 +332,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
       this._debug('write ok', { device: label, value });
       return { ok: true };
     } catch (err) {
-      this.homey.app.debugError('write failed', { device: label, value, error: err.message });
+      this._debug('write failed', { device: label, value, error: err.message });
       this.error(`[${this.getName()}] Failed to set ${label}: ${err.message}`);
       return { ok: false, errorMessage: err.message };
     }

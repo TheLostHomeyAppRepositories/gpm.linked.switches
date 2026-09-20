@@ -93,7 +93,6 @@ Each group has its own settings, accessible by tapping the device and going to *
 |---|---|---|
 | **Linked Devices** | List of devices currently in this group | — |
 | **Echo Suppress Window** | How long (ms) to ignore echoes after sending a command. Prevents feedback loops. | 2000 ms |
-| **Enable Debug Logging** | Write verbose logs to the app console (for troubleshooting) | Off |
 | **Auto-Heal Desynced Devices** | Automatically retry setting a desynced device to the expected state (20 s cooldown per device) | Off |
 | **Notify on Desync** | Send a push notification if a device fails to reach the expected state | On |
 

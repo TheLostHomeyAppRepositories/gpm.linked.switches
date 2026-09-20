@@ -98,11 +98,6 @@
   </div>
   <div class="hint" id="lbl-boot-sync-hint"></div>
 
-  <div class="mode-row">
-    <span id="lbl-debug-logging"></span>
-    <input type="checkbox" id="debug-logging-toggle" onchange="changeDebugLogging(this.checked)" />
-  </div>
-
   <div class="actions">
     <button class="action" id="btn-copy" onclick="copyLog()"></button>
     <button class="action danger" id="btn-clear" onclick="clearLog()"></button>
@@ -218,10 +213,6 @@
       Homey.set('boot_sync_policy', val, function() {});
     }
 
-    function changeDebugLogging(val) {
-      Homey.set('debug_logging', !!val, function() {});
-    }
-
     function copyLog() {
       if (currentLog.length === 0) return;
       var text = currentLog.map(function(e) {
@@ -264,7 +255,6 @@
       document.getElementById('opt-keep-virtual').textContent = Homey.__('settings.boot_sync_keep_virtual');
       document.getElementById('opt-any-on-wins').textContent = Homey.__('settings.boot_sync_any_on_wins');
       document.getElementById('lbl-boot-sync-hint').textContent = Homey.__('settings.boot_sync_hint');
-      document.getElementById('lbl-debug-logging').textContent = Homey.__('settings.debug_logging_label');
 
       Homey.get('show_device_status', function(err, val) {
         document.getElementById('show-status-toggle').checked = val === true || val === 'true';
@@ -276,10 +266,6 @@
 
       Homey.get('boot_sync_policy', function(err, val) {
         document.getElementById('boot-sync-select').value = val === 'any_on_wins' ? 'any_on_wins' : 'keep_virtual';
-      });
-
-      Homey.get('debug_logging', function(err, val) {
-        document.getElementById('debug-logging-toggle').checked = val === true || val === 'true';
       });
 
       Homey.on('settings.set', function(key, value) {
@@ -294,9 +280,6 @@
         }
         if (key === 'boot_sync_policy') {
           document.getElementById('boot-sync-select').value = value === 'any_on_wins' ? 'any_on_wins' : 'keep_virtual';
-        }
-        if (key === 'debug_logging') {
-          document.getElementById('debug-logging-toggle').checked = value === true || value === 'true';
         }
       });
 

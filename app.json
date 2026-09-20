@@ -736,19 +736,6 @@
           }
         },
         {
-          "id": "debug",
-          "type": "checkbox",
-          "label": {
-            "en": "Enable Debug Logging",
-            "nl": "Foutopsporing inschakelen",
-            "de": "Debug-Protokollierung aktivieren",
-            "fr": "Activer la journalisation de débogage",
-            "es": "Habilitar registro de depuración",
-            "it": "Abilita registrazione debug"
-          },
-          "value": false
-        },
-        {
           "id": "auto_heal",
           "type": "checkbox",
           "label": {

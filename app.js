@@ -6,29 +6,6 @@ const { BOOT_SYNC_POLICIES, DEFAULT_BOOT_SYNC_POLICY } = require('./lib/constant
 
 module.exports = class SwitchSyncApp extends Homey.App {
 
-  // Global debug toggle — controlled by "Enable Debug Logging" on the app's
-  // Configure page, or GPM_LINKED_SWITCHES_DEBUG=true for local CLI runs.
-  _isDebugEnabled() {
-    if (this.homey.settings.get('debug_logging') === true) return true;
-    const value = process.env.GPM_LINKED_SWITCHES_DEBUG;
-    return value === '1' || value === 'true' || value === 'yes' || value === 'on';
-  }
-
-  // Structured debug helpers. Drivers can call these via:
-  //   this.homey.app.debugLog(tag, payload)
-  //   this.homey.app.debugError(tag, payload)
-  debugLog(tag, payload) {
-    if (!this._isDebugEnabled()) return;
-    if (payload !== undefined) this.log(`[DEBUG][${tag}]`, payload);
-    else this.log(`[DEBUG][${tag}]`);
-  }
-
-  debugError(tag, payload) {
-    if (!this._isDebugEnabled()) return;
-    if (payload !== undefined) this.error(`[DEBUG][${tag}]`, payload);
-    else this.error(`[DEBUG][${tag}]`);
-  }
-
   _isSettingEnabled(value, defaultValue = true) {
     if (value === undefined || value === null) return defaultValue;
     if (value === false || value === 'false' || value === 0 || value === '0') return false;
@@ -47,15 +24,8 @@ module.exports = class SwitchSyncApp extends Homey.App {
     if (this.homey.settings.get('show_master_status') === undefined) {
       this.homey.settings.set('show_master_status', 'false');
     }
-    if (this.homey.settings.get('debug_logging') === undefined) {
-      this.homey.settings.set('debug_logging', false);
-    }
     if (!BOOT_SYNC_POLICIES.includes(this.homey.settings.get('boot_sync_policy'))) {
       this.homey.settings.set('boot_sync_policy', DEFAULT_BOOT_SYNC_POLICY);
-    }
-
-    if (this._isDebugEnabled()) {
-      this.log('Debug logging is enabled');
     }
 
     // Avoid false-positive MaxListenersExceededWarning caused by Homey SDK
@@ -82,8 +52,9 @@ module.exports = class SwitchSyncApp extends Homey.App {
       }
     });
 
-    // log_mode was removed in v1.2.0; clean up stale setting from older installs.
+    // log_mode was removed in v1.2.0 and debug_logging in v1.1.5; clean up stale settings from older installs.
     this.homey.settings.unset('log_mode');
+    this.homey.settings.unset('debug_logging');
   }
 
   async getHomeyAPI() {
