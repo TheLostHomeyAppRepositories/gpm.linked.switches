@@ -69,12 +69,29 @@
     "actual": "Réel",
     "show_status_label": "Afficher l'état des sous-appareils sur les cartes Linked Switch :",
     "show_master_status_label": "Afficher l'état des sous-appareils sur les cartes Switch Master :",
-    "debug_logging_label": "Activer la journalisation de débogage :"
+    "debug_logging_label": "Activer la journalisation de débogage :",
+    "boot_sync_label": "Synchronisation au démarrage (Linked Switch) :",
+    "boot_sync_keep_virtual": "Conserver l'état du groupe",
+    "boot_sync_any_on_wins": "Tout ON l'emporte",
+    "boot_sync_hint": "Au redémarrage de Homey, « Conserver l'état du groupe » rétablit sur les appareils le dernier état ON/OFF du groupe (p. ex. après une coupure de courant). « Tout ON l'emporte » passe le groupe sur ON dès qu'un appareil est ON."
   },
   "sync": {
     "virtual_switch": "Interrupteur virtuel",
     "health_check": "Vérification de santé",
-    "notification_excerpt": "Interrupteurs liés \"{group}\": {devices}"
+    "notification_excerpt": "Interrupteurs liés \"{group}\": {devices}",
+    "on": "Allumé",
+    "off": "Éteint",
+    "none": "Aucun",
+    "master_command": "Commande maître",
+    "slave_command": "Commande esclave",
+    "master_title": "Maître : {name}",
+    "master_switch": "Interrupteur maître",
+    "master_label": "Maître",
+    "slaves_label": "Esclaves",
+    "device_removed_degraded": "Appareil retiré — groupe dégradé ({remaining} appareils restants, toujours fonctionnel)",
+    "device_removed_condemned": "Appareil retiré — groupe condamné ({remaining} appareil(s) restant(s), réparation nécessaire)",
+    "slave_removed_degraded": "Esclave retiré — groupe dégradé ({remaining} esclave(s) restant(s), toujours fonctionnel)",
+    "slave_removed_condemned": "Esclave retiré — groupe condamné ({remaining} esclave(s) restant(s), réparation nécessaire)"
   },
   "master_wizard": {
     "master_name": "Nom de l’appareil virtuel",

@@ -69,12 +69,29 @@
     "actual": "Effettivo",
     "show_status_label": "Mostra lo stato dei subdevice nelle card Linked Switch:",
     "show_master_status_label": "Mostra lo stato dei subdevice nelle card Switch Master:",
-    "debug_logging_label": "Abilita registrazione debug:"
+    "debug_logging_label": "Abilita registrazione debug:",
+    "boot_sync_label": "Sincronizzazione all'avvio (Linked Switch):",
+    "boot_sync_keep_virtual": "Mantieni lo stato del gruppo",
+    "boot_sync_any_on_wins": "Qualsiasi ON vince",
+    "boot_sync_hint": "Al riavvio di Homey, «Mantieni lo stato del gruppo» ripristina sui dispositivi l'ultimo stato ON/OFF del gruppo (es. dopo un'interruzione di corrente). «Qualsiasi ON vince» accende il gruppo se un dispositivo è ON."
   },
   "sync": {
     "virtual_switch": "Interruttore virtuale",
     "health_check": "Controllo salute",
-    "notification_excerpt": "Interruttori collegati \"{group}\": {devices}"
+    "notification_excerpt": "Interruttori collegati \"{group}\": {devices}",
+    "on": "Acceso",
+    "off": "Spento",
+    "none": "Nessuno",
+    "master_command": "Comando master",
+    "slave_command": "Comando slave",
+    "master_title": "Master: {name}",
+    "master_switch": "Interruttore master",
+    "master_label": "Master",
+    "slaves_label": "Slave",
+    "device_removed_degraded": "Dispositivo rimosso — gruppo degradato ({remaining} dispositivi rimasti, ancora funzionante)",
+    "device_removed_condemned": "Dispositivo rimosso — gruppo compromesso ({remaining} dispositivo/i rimasto/i, richiede riparazione)",
+    "slave_removed_degraded": "Slave rimosso — gruppo degradato ({remaining} slave rimasti, ancora funzionante)",
+    "slave_removed_condemned": "Slave rimosso — gruppo compromesso ({remaining} slave rimasti, richiede riparazione)"
   },
   "master_wizard": {
     "master_name": "Nome del dispositivo virtuale",

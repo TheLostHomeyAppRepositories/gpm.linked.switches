@@ -105,6 +105,24 @@ Turn it on when you have a device that drops commands intermittently but is othe
 
 ---
 
+## Boot Sync Policy
+
+A global setting (app **Configure** page) for **Linked Switch** groups. It decides which state wins when Homey starts, for example after a power outage, when devices may come back in different states:
+
+| Policy | What happens at startup |
+|---|---|
+| **Keep group state** (default) | The group's last saved ON/OFF state is restored onto its devices. A lamp that powered back on while the group was OFF is turned OFF again. |
+| **Any ON wins** | If any device in the group is ON, the group becomes ON and the rest are turned ON. |
+
+Notes:
+
+- The policy only applies at startup. Later re-subscriptions (health check, Repair) always keep the group's current state.
+- A group that has no saved state yet (just created) adopts its devices' state, whichever policy is set.
+- With **Keep group state**, a wall switch flipped while Homey was down is reverted to the group's saved state.
+- Switch Master groups are not affected.
+
+---
+
 ## Desync Log
 
 The app records all desync events in a global log, accessible via **Configure** on the app page.
@@ -138,7 +156,7 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 - Echo suppression prevents feedback loops (a device confirming its own command)
 - Rapid duplicate callbacks from the same device are debounced before propagating
 - Devices that are offline when a command is sent are queued and synced when they reconnect
-- On startup, all devices in the group are automatically aligned to the same state
+- On startup, all devices in the group are automatically aligned to the same state (see [Boot Sync Policy](#boot-sync-policy))
 - A health check runs every 10 minutes, and immediately after a failed sync, to detect accumulated drift
 
 ---
@@ -149,7 +167,6 @@ Each group exposes the following Flow cards (found under the group device):
 
 - **Trigger — "A device failed to sync"** — fires when a device fails to reach the expected state. Tokens: device name, expected state, actual state.
 - **Condition — "Group is fully synced"** — true when every device matches the group state (no pending failures or offline devices).
-- **Condition — "Group is waiting for an offline device"** — true while a command is queued for a device that was offline.
 - **Action — "Force resync"** — re-sends the current group state to all devices.
 
 ---

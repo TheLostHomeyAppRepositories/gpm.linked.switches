@@ -1,30 +1,15 @@
 'use strict';
 
-const { Device } = require('homey');
+const LinkedGroupDevice = require('../../lib/LinkedGroupDevice');
+const { SLAVE_STAGGER_MS } = require('../../lib/constants');
 
 const MIN_SLAVES = 2;
 const MAX_SLAVES = 9;
 
-// Debounce rapid duplicate capability callbacks (ms)
-const CALLBACK_DEBOUNCE_MS = 80;
-
 // Delay before reporting a failed write, giving late echoes a chance to arrive (ms)
 const ERROR_REPORT_DELAY_MS = 2500;
 
-// Small stagger between slave writes to avoid Zigbee network congestion.
-// Must stay imperceptible to the user: 30ms per device keeps the whole
-// group under ~250ms even with 9 slaves.
-const SLAVE_STAGGER_MS = 30;
-
-// Periodic health check interval — safety net that re-subscribes missing
-// master/slave listeners and detects devices removed from Homey.
-const HEALTH_INTERVAL_MS = 10 * 60 * 1000;
-
-// Minimum time between the first and confirming subscribe failure before a
-// device is treated as a ghost (deleted from Homey).
-const GHOST_CONFIRM_GAP_MS = 5 * 60 * 1000;
-
-class SwitchMasterDevice extends Device {
+class SwitchMasterDevice extends LinkedGroupDevice {
 
   // Development debug logs: use the global app helpers so all drivers share
   // the same toggle (`.debug` file or GPM_LINKED_SWITCHES_DEBUG=true).
@@ -32,34 +17,6 @@ class SwitchMasterDevice extends Device {
     if (this.homey && this.homey.app && typeof this.homey.app.debugLog === 'function') {
       this.homey.app.debugLog(tag, { group: this.getName(), ...payload });
     }
-  }
-
-  // Debounce rapid duplicate capability callbacks. If the same device fires
-  // the same value within CALLBACK_DEBOUNCE_MS, only the last one is processed.
-  // If the value changes, process immediately.
-  _debouncedCallback(deviceId, value, handler) {
-    const last = this._lastCallbackValues.get(deviceId);
-    if (last !== undefined && last !== value) {
-      this._flushCallback(deviceId, value, handler);
-      return;
-    }
-    this._lastCallbackValues.set(deviceId, value);
-
-    const existing = this._callbackTimers.get(deviceId);
-    if (existing) this.homey.clearTimeout(existing);
-
-    const timer = this.homey.setTimeout(() => {
-      this._callbackTimers.delete(deviceId);
-      this._flushCallback(deviceId, value, handler);
-    }, CALLBACK_DEBOUNCE_MS);
-
-    this._callbackTimers.set(deviceId, timer);
-  }
-
-  _flushCallback(deviceId, value, handler) {
-    this._callbackTimers.delete(deviceId);
-    this._lastCallbackValues.set(deviceId, value);
-    handler(value);
   }
 
   // Cancel a delayed error report if the device state has just been confirmed.
@@ -89,6 +46,8 @@ class SwitchMasterDevice extends Device {
   async onInit() {
     this._debug('init', { message: 'device initialized' });
 
+    this._initGroupState();
+
     this._master = null;
     this._slaves = new Map();
     this._deviceNames = new Map();
@@ -97,55 +56,19 @@ class SwitchMasterDevice extends Device {
     this._settingVirtualMaster = false;
     this._syncingMasterFromUnanimity = false;
 
-    // Callback debounce: deviceId -> timer
-    this._callbackTimers = new Map();
     // Delayed error reports: deviceId -> { timer, expected, role, name }
     this._pendingErrorReports = new Map();
-    // Last seen value per device (for debounce change detection)
-    this._lastCallbackValues = new Map();
-
-    // Persistent subscription failures: deviceId → { count, firstFailAt, reported? }
-    this._subscribeFailures = new Map();
-    // Cooldown for on-demand re-subscription (ms)
-    this._resubscribeCooldown = 60 * 1000;
-    this._lastResubscribeAt = 0;
-
-    // Serializes _subscribeToDevices so overlapping triggers (concurrent
-    // re-subscribes) never interleave and corrupt shared Maps.
-    this._opQueue = null;
 
     this.registerCapabilityListener('onoff', this._onVirtualMasterChanged.bind(this));
     await this._subscribeToDevices();
 
     // Boot health check, then a periodic safety net
-    const jitter = Math.random() * 10000;
-    this._healthStartTimer = this.homey.setTimeout(() => {
-      this._healthStartTimer = null;
-      this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`));
-      this._healthInterval = this.homey.setInterval(
-        () => this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`)),
-        HEALTH_INTERVAL_MS,
-      );
-    }, jitter);
+    this._startHealthMonitor();
   }
 
   async reloadConfiguration() {
     this._debug('reload', { message: 'reloading configuration' });
     await this._subscribeToDevices();
-  }
-
-  async _api() {
-    return this.homey.app.getHomeyAPI();
-  }
-
-  // Runs fn() after any previously-enqueued operation settles, so two triggers
-  // never run their state-mutating bodies concurrently. A rejected fn() doesn't
-  // stall the queue.
-  _enqueue(fn) {
-    const prev = this._opQueue || Promise.resolve();
-    const next = prev.catch(() => {}).then(fn);
-    this._opQueue = next.catch(() => {});
-    return next;
   }
 
   async _subscribeToDevices() {
@@ -221,21 +144,15 @@ class SwitchMasterDevice extends Device {
       }
     }
 
-    // Ghost detection — failures must be spread across GHOST_CONFIRM_GAP_MS (not a
-    // single boot burst) so a transient API hiccup can't remove a real device.
+    // Ghost detection (see _confirmSubscribeFailure).
     const now = Date.now();
 
     // Master can't be auto-removed (the group requires one) — just warn once.
     if (masterDeviceId && !this._master) {
-      const existing = this._subscribeFailures.get(masterDeviceId);
-      if (!existing) {
-        this._subscribeFailures.set(masterDeviceId, { count: 1, firstFailAt: now, reported: false });
-      } else if (!existing.reported && now - existing.firstFailAt >= GHOST_CONFIRM_GAP_MS) {
-        existing.count++;
-        if (existing.count >= 2) {
-          existing.reported = true;
-          this._reportGhostMaster(prevNames.get(masterDeviceId));
-        }
+      const prior = this._subscribeFailures.get(masterDeviceId);
+      if (!(prior && prior.reported) && this._confirmSubscribeFailure(masterDeviceId, now)) {
+        this._subscribeFailures.get(masterDeviceId).reported = true;
+        this._reportGhostMaster(prevNames.get(masterDeviceId));
       }
     } else if (masterDeviceId) {
       this._subscribeFailures.delete(masterDeviceId);
@@ -245,13 +162,7 @@ class SwitchMasterDevice extends Device {
     const ghostSlaves = [];
     for (const deviceId of slaveIds) {
       if (!this._slaves.has(deviceId)) {
-        const existing = this._subscribeFailures.get(deviceId);
-        if (!existing) {
-          this._subscribeFailures.set(deviceId, { count: 1, firstFailAt: now });
-        } else if (now - existing.firstFailAt >= GHOST_CONFIRM_GAP_MS) {
-          existing.count++;
-          if (existing.count >= 2) ghostSlaves.push(deviceId);
-        }
+        if (this._confirmSubscribeFailure(deviceId, now)) ghostSlaves.push(deviceId);
       } else {
         this._subscribeFailures.delete(deviceId);
       }
@@ -309,8 +220,8 @@ class SwitchMasterDevice extends Device {
       hasError:  true,
       important: true,
       note:      degraded
-        ? `Slave removed — group degraded (${remaining} slave(s) remaining, still functional)`
-        : `Slave removed — group condemned (${remaining} slave(s) remaining, needs repair)`,
+        ? this.homey.__('sync.slave_removed_degraded').replace('{remaining}', remaining)
+        : this.homey.__('sync.slave_removed_condemned').replace('{remaining}', remaining),
     });
   }
 
@@ -364,7 +275,7 @@ class SwitchMasterDevice extends Device {
     }
 
     await this.setCapabilityOptions('onoff', {
-      title: { en: this._master ? `Master: ${this._master.device.name}` : 'Master Switch' },
+      title: { en: this._master ? this.homey.__('sync.master_title').replace('{name}', this._master.device.name) : this.homey.__('sync.master_switch') },
     }).catch(() => {});
 
     for (let i = 0; i < controlIds.length; i++) {
@@ -411,9 +322,7 @@ class SwitchMasterDevice extends Device {
   }
 
   _shouldShowDeviceStatus() {
-    const value = this.homey.settings.get('show_master_status');
-    if (value === undefined || value === null) return false;
-    return value !== false && value !== 'false' && value !== 0 && value !== '0';
+    return this._isAppToggleOn('show_master_status', false);
   }
 
   async _refreshStatusCapabilities() {
@@ -487,7 +396,7 @@ class SwitchMasterDevice extends Device {
     this.homey.app.addSyncReport({
       timestamp: new Date().toISOString(),
       group: this.getName(),
-      trigger: role === 'master' ? 'Master command' : 'Slave command',
+      trigger: this.homey.__(role === 'master' ? 'sync.master_command' : 'sync.slave_command'),
       value: expected,
       devices: [{ name, synced: false, expected, actual: null, errorMessage }],
       hasError: true,
@@ -521,8 +430,8 @@ class SwitchMasterDevice extends Device {
   }
 
   _statusText(value) {
-    if (value === true) return 'On';
-    if (value === false) return 'Off';
+    if (value === true) return this.homey.__('sync.on');
+    if (value === false) return this.homey.__('sync.off');
     return '—';
   }
 
@@ -720,17 +629,17 @@ class SwitchMasterDevice extends Device {
 
   async _updateLinkedDevicesSetting() {
     try {
-      const masterName = this._master ? this._master.device.name : 'None';
-      const slaveNames = Array.from(this._slaves.values()).map(({ device }) => device.name).join('\n') || 'None';
-      await this.setSettings({ linked_devices_info: `Master: ${masterName}\n\nSlaves:\n${slaveNames}` });
+      const none = this.homey.__('sync.none');
+      const masterName = this._master ? this._master.device.name : none;
+      const slaveNames = Array.from(this._slaves.values()).map(({ device }) => device.name).join('\n') || none;
+      await this.setSettings({ linked_devices_info: `${this.homey.__('sync.master_label')}: ${masterName}\n\n${this.homey.__('sync.slaves_label')}:\n${slaveNames}` });
     } catch (err) {
       this.error(`[${this.getName()}] Failed to update settings: ${err.message}`);
     }
   }
 
   async onDeleted() {
-    if (this._healthStartTimer) this.homey.clearTimeout(this._healthStartTimer);
-    if (this._healthInterval)   this.homey.clearInterval(this._healthInterval);
+    this._disposeGroupState();
 
     if (this._master && this._master.onoffInstance) {
       try { this._master.onoffInstance.destroy(); } catch (_) {}
@@ -741,13 +650,9 @@ class SwitchMasterDevice extends Device {
     for (const { timer } of this._suppress.values()) {
       if (timer) this.homey.clearTimeout(timer);
     }
-    for (const timer of this._callbackTimers.values()) {
-      if (timer) this.homey.clearTimeout(timer);
-    }
     for (const { timer } of this._pendingErrorReports.values()) {
       if (timer) this.homey.clearTimeout(timer);
     }
-    this._subscribeFailures.clear();
   }
 
 }

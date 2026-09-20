@@ -1,18 +1,15 @@
 'use strict';
 
-const { Device } = require('homey');
+const LinkedGroupDevice = require('../../lib/LinkedGroupDevice');
+const {
+  SLAVE_STAGGER_MS,
+  BOOT_SYNC_POLICIES,
+  DEFAULT_BOOT_SYNC_POLICY,
+} = require('../../lib/constants');
 
 // Extra time after suppressMs before verifying device states.
 // Covers: Nova retries (~1.5s) + Tuya backoff retries (~2.2s) + Zigbee routing latency (~1s each way)
 const VERIFY_DELAY_EXTRA_MS = 5000;
-
-// Periodic health check interval — safety net for drift not tied to a propagation
-// (e.g. a listener that dies silently with no one toggling the switch afterward).
-const HEALTH_INTERVAL_MS = 10 * 60 * 1000;
-
-// Minimum time between the first and confirming subscribe failure before a
-// device is treated as a ghost (deleted from Homey) and removed from the group.
-const GHOST_CONFIRM_GAP_MS = 5 * 60 * 1000;
 
 // Discard expected-state entries older than this (stale after user changes things)
 const EXPECTED_STATE_TTL_MS = 5 * 60 * 1000;
@@ -20,10 +17,7 @@ const EXPECTED_STATE_TTL_MS = 5 * 60 * 1000;
 // Discard pending-offline entries older than this (device unlikely to return)
 const PENDING_OFFLINE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-// Small stagger between non-primary writes to avoid Zigbee network congestion.
-const SLAVE_STAGGER_MS = 30;
-
-class SwitchSyncDevice extends Device {
+class SwitchSyncDevice extends LinkedGroupDevice {
 
   // Use the global app debug toggle. The per-device setting is kept for compatibility.
   _isDebugEnabled() {
@@ -42,6 +36,8 @@ class SwitchSyncDevice extends Device {
 
   async onInit() {
     this._debug('init', { message: 'device initialized' });
+
+    this._initGroupState();
 
     // deviceId → { device, onoffInstance }
     this._listeners   = new Map();
@@ -70,19 +66,8 @@ class SwitchSyncDevice extends Device {
     // not one identical entry every cycle.
     this._activeDesyncs = new Map();
 
-    // Cooldown for on-demand re-subscription defense (ms)
-    this._resubscribeCooldown = 60 * 1000;
-    this._lastResubscribeAt = 0;
-
     // Clickable per-device controls.
     this._registeredButtonCaps = new Set();
-
-    // Callback debounce: deviceId → timer
-    this._callbackTimers = new Map();
-    this._lastCallbackValues = new Map();
-
-    // Persistent subscription failures: deviceId → consecutive count
-    this._subscribeFailures = new Map();
 
     // Primary device: controlled first, others follow with stagger
     this._primaryDeviceId = this.getStoreValue('primaryDeviceId') || null;
@@ -93,6 +78,10 @@ class SwitchSyncDevice extends Device {
     // Boot sync guard
     this._isBootSync = false;
 
+    // The first subscribe after init follows the global boot sync policy;
+    // later re-subscribes always keep the current group state.
+    this._bootPending = true;
+
     // Same-tick dedup
     this._lastPropagatedValue = null;
 
@@ -102,71 +91,17 @@ class SwitchSyncDevice extends Device {
     // Single verify timer (reset on each propagation, fires once after settle)
     this._verifyTimer = null;
 
-    // Serializes _propagate/_subscribeToDevices so overlapping triggers
-    // (rapid toggles, concurrent re-subscribes) never interleave.
-    this._opQueue = null;
-
     this.registerCapabilityListener('onoff', this._onOwnOnOff.bind(this));
 
     await this._subscribeToDevices();
 
     // Boot health check, then a periodic safety net (also triggers on-demand via verify / force-resync)
-    const jitter = Math.random() * 10000;
-    this._healthStartTimer = this.homey.setTimeout(() => {
-      this._healthStartTimer = null;
-      this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`));
-      this._healthInterval = this.homey.setInterval(
-        () => this._verifyGroupHealth().catch(err => this.error(`[${this.getName()}] Health check error: ${err.message}`)),
-        HEALTH_INTERVAL_MS,
-      );
-    }, jitter);
+    this._startHealthMonitor();
   }
 
   async reloadConfiguration() {
     this._debug('reloading configuration');
     await this._subscribeToDevices();
-  }
-
-  async _api() {
-    return this.homey.app.getHomeyAPI();
-  }
-
-  // Runs fn() after any previously-enqueued operation settles, so two triggers
-  // (e.g. two rapid toggles, or a toggle racing a re-subscribe) never run their
-  // state-mutating bodies concurrently. A rejected fn() doesn't stall the queue.
-  _enqueue(fn) {
-    const prev = this._opQueue || Promise.resolve();
-    const next = prev.catch(() => {}).then(fn);
-    this._opQueue = next.catch(() => {});
-    return next;
-  }
-
-  // Debounce rapid duplicate capability callbacks. If the same device fires
-  // the same value within 80ms, only the last one is processed.
-  // If the value changes, process immediately.
-  _debouncedCallback(deviceId, value, handler) {
-    const last = this._lastCallbackValues.get(deviceId);
-    if (last !== undefined && last !== value) {
-      this._flushCallback(deviceId, value, handler);
-      return;
-    }
-    this._lastCallbackValues.set(deviceId, value);
-
-    const existing = this._callbackTimers.get(deviceId);
-    if (existing) this.homey.clearTimeout(existing);
-
-    const timer = this.homey.setTimeout(() => {
-      this._callbackTimers.delete(deviceId);
-      this._flushCallback(deviceId, value, handler);
-    }, 80);
-
-    this._callbackTimers.set(deviceId, timer);
-  }
-
-  _flushCallback(deviceId, value, handler) {
-    this._callbackTimers.delete(deviceId);
-    this._lastCallbackValues.set(deviceId, value);
-    handler(value);
   }
 
   // ─── Subscribe ────────────────────────────────────────────────────────────
@@ -227,20 +162,12 @@ class SwitchSyncDevice extends Device {
       }
     }
 
-    // Auto-remove ghost devices that persistently fail subscription. Failures must
-    // be spread across GHOST_CONFIRM_GAP_MS (not a single boot burst) so a transient
-    // API hiccup at startup can't get a real device removed from the group.
+    // Auto-remove ghost devices that persistently fail subscription.
     const ghosts = [];
     const now = Date.now();
     for (const deviceId of deviceIds) {
       if (!this._listeners.has(deviceId)) {
-        const existing = this._subscribeFailures.get(deviceId);
-        if (!existing) {
-          this._subscribeFailures.set(deviceId, { count: 1, firstFailAt: now });
-        } else if (now - existing.firstFailAt >= GHOST_CONFIRM_GAP_MS) {
-          existing.count++;
-          if (existing.count >= 2) ghosts.push(deviceId);
-        }
+        if (this._confirmSubscribeFailure(deviceId, now)) ghosts.push(deviceId);
       } else {
         this._subscribeFailures.delete(deviceId);
       }
@@ -274,22 +201,28 @@ class SwitchSyncDevice extends Device {
     await this._syncSubCapabilities(deviceIds);
 
     try {
-      const namesStr = Array.from(this._deviceNames.values()).join('\n') || 'None';
+      const namesStr = Array.from(this._deviceNames.values()).join('\n') || this.homey.__('sync.none');
       await this.setSettings({ linked_devices_info: namesStr });
     } catch (err) {
       this.error(`Failed to update settings: ${err.message}`);
     }
 
+    const policy = this._resolveSyncPolicy();
+    this._debug(`sync policy: ${policy}`);
+
     this._isBootSync = true;
     try {
-      let isAnyOn = false;
-      for (const { onoffInstance } of this._listeners.values()) {
-        if (onoffInstance.value === true) { isAnyOn = true; break; }
-      }
-      const virtualCurrent = this.getCapabilityValue('onoff');
-      if (virtualCurrent !== isAnyOn) {
-        this._debug(`boot sync -> ${isAnyOn ? 'ON' : 'OFF'}`);
-        await this.setCapabilityValue('onoff', isAnyOn).catch(err => this.error(`[${this.getName()}] Boot sync setCapabilityValue error: ${err.message}`));
+      // keep_virtual leaves the group's saved state as is; any_on_wins adopts the devices' state.
+      if (policy === 'any_on_wins') {
+        let isAnyOn = false;
+        for (const { onoffInstance } of this._listeners.values()) {
+          if (onoffInstance.value === true) { isAnyOn = true; break; }
+        }
+        const virtualCurrent = this.getCapabilityValue('onoff');
+        if (virtualCurrent !== isAnyOn) {
+          this._debug(`boot sync -> ${isAnyOn ? 'ON' : 'OFF'}`);
+          await this.setCapabilityValue('onoff', isAnyOn).catch(err => this.error(`[${this.getName()}] Boot sync setCapabilityValue error: ${err.message}`));
+        }
       }
     } catch (err) {
       this.error(`[${this.getName()}] Boot sync error:`, err);
@@ -308,6 +241,20 @@ class SwitchSyncDevice extends Device {
     }
   }
 
+  // The first subscribe after init follows the global `boot_sync_policy`; re-subscribes
+  // (health check, Repair) always keep the group's current state. A group with no saved
+  // state yet has nothing to keep, so it adopts the devices' state.
+  _resolveSyncPolicy() {
+    const isBoot = this._bootPending;
+    this._bootPending = false;
+
+    if (typeof this.getCapabilityValue('onoff') !== 'boolean') return 'any_on_wins';
+    if (!isBoot) return 'keep_virtual';
+
+    const policy = this.homey.settings.get('boot_sync_policy');
+    return BOOT_SYNC_POLICIES.includes(policy) ? policy : DEFAULT_BOOT_SYNC_POLICY;
+  }
+
   async _removeGhostDevice(deviceId, deviceName) {
     const deviceIds = (this.getStoreValue('deviceIds') || []).filter(id => id !== deviceId);
     await this.setStoreValue('deviceIds', deviceIds);
@@ -324,8 +271,8 @@ class SwitchSyncDevice extends Device {
       hasError:  true,
       important: true,
       note:      degraded
-        ? `Device removed — group degraded (${remaining} devices remaining, still functional)`
-        : `Device removed — group condemned (${remaining} device(s) remaining, needs repair)`,
+        ? this.homey.__('sync.device_removed_degraded').replace('{remaining}', remaining)
+        : this.homey.__('sync.device_removed_condemned').replace('{remaining}', remaining),
     });
   }
 
@@ -420,9 +367,7 @@ class SwitchSyncDevice extends Device {
   }
 
   _shouldShowDeviceStatus() {
-    const value = this.homey.settings.get('show_device_status');
-    if (value === undefined || value === null) return true;
-    return value !== false && value !== 'false' && value !== 0 && value !== '0';
+    return this._isAppToggleOn('show_device_status', true);
   }
 
   // Render one subdevice_switch.N — either live ON/OFF status (default), with a ⚠
@@ -459,7 +404,7 @@ class SwitchSyncDevice extends Device {
     const v = entry ? entry.onoffInstance.value : null;
     if (v === null || v === undefined) return '—';
     const diverges = v !== this.getCapabilityValue('onoff');
-    return (v ? 'On' : 'Off') + (diverges ? ' ⚠' : '');
+    return this.homey.__(v ? 'sync.on' : 'sync.off') + (diverges ? ' ⚠' : '');
   }
 
   // Lightweight value-only refresh, used on every device state change
@@ -929,10 +874,6 @@ class SwitchSyncDevice extends Device {
     return this._notifiedDesyncs.size === 0 && this._pendingOffline.size === 0;
   }
 
-  isGroupPendingOffline() {
-    return this._pendingOffline.size > 0;
-  }
-
   async forceResync() {
     // Skip if a propagation is already in flight
     for (const exp of this._expectedStates.values()) {
@@ -954,9 +895,8 @@ class SwitchSyncDevice extends Device {
   async onDeleted() {
     this._debug('deleted — cleaning up');
 
-    if (this._healthStartTimer) this.homey.clearTimeout(this._healthStartTimer);
-    if (this._healthInterval)   this.homey.clearInterval(this._healthInterval);
-    if (this._verifyTimer)      this.homey.clearTimeout(this._verifyTimer);
+    this._disposeGroupState();
+    if (this._verifyTimer) this.homey.clearTimeout(this._verifyTimer);
 
     for (const { onoffInstance } of this._listeners.values()) {
       try { onoffInstance.destroy(); } catch (_) {}
@@ -967,14 +907,10 @@ class SwitchSyncDevice extends Device {
     this._suppress.clear();
     this._lastListenerUpdate.clear();
 
-    for (const timer of this._callbackTimers.values()) this.homey.clearTimeout(timer);
-    this._callbackTimers.clear();
-
     this._pendingOffline.clear();
     this._expectedStates.clear();
     this._notifiedDesyncs.clear();
     this._activeDesyncs.clear();
-    this._subscribeFailures.clear();
   }
 
 }

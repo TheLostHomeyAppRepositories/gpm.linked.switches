@@ -2,6 +2,7 @@
 
 const Homey = require('homey');
 const { HomeyAPI } = require('homey-api');
+const { BOOT_SYNC_POLICIES, DEFAULT_BOOT_SYNC_POLICY } = require('./lib/constants');
 
 module.exports = class SwitchSyncApp extends Homey.App {
 
@@ -48,6 +49,9 @@ module.exports = class SwitchSyncApp extends Homey.App {
     }
     if (this.homey.settings.get('debug_logging') === undefined) {
       this.homey.settings.set('debug_logging', false);
+    }
+    if (!BOOT_SYNC_POLICIES.includes(this.homey.settings.get('boot_sync_policy'))) {
+      this.homey.settings.set('boot_sync_policy', DEFAULT_BOOT_SYNC_POLICY);
     }
 
     if (this._isDebugEnabled()) {

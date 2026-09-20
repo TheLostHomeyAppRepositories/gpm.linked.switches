@@ -39,28 +39,11 @@ File: `drivers/switch-sync/settings/index.html`
 
 ### Locale strings cleanup
 
-Move remaining user-facing strings from `device.js` to `locales/*.json`:
-
-- `Virtual Switch`
-- `Health Check`
-- push notification text
+Almost done. The only user-facing string left in `device.js` is the desync push notification detail (`is ON, expected OFF`) in `switch-sync/device.js`.
 
 ---
 
 ## 🟡 Low Priority
-
-### Boot sync rule documentation
-
-Document the boot behavior in more detail:
-
-- if any device is ON at boot, the virtual state becomes ON
-- the app then propagates that state to divergent devices
-
-Possible future alternatives to consider:
-
-- `any on wins`
-- `keep virtual state`
-- `do not auto-align`
 
 ### Inverse switch driver
 

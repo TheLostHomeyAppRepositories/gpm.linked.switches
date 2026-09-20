@@ -69,12 +69,29 @@
     "actual": "Actual",
     "show_status_label": "Show subdevice status on Linked Switch cards:",
     "show_master_status_label": "Show subdevice status on Switch Master cards:",
-    "debug_logging_label": "Enable Debug Logging:"
+    "debug_logging_label": "Enable Debug Logging:",
+    "boot_sync_label": "Boot sync policy (Linked Switch):",
+    "boot_sync_keep_virtual": "Keep group state",
+    "boot_sync_any_on_wins": "Any ON wins",
+    "boot_sync_hint": "When Homey restarts, \"Keep group state\" restores the group's last ON/OFF state onto its devices (e.g. after a power outage). \"Any ON wins\" turns the group ON if any device is ON."
   },
   "sync": {
     "virtual_switch": "Virtual Switch",
     "health_check": "Health Check",
-    "notification_excerpt": "Switch Sync \"{group}\": {devices}"
+    "notification_excerpt": "Switch Sync \"{group}\": {devices}",
+    "on": "On",
+    "off": "Off",
+    "none": "None",
+    "master_command": "Master command",
+    "slave_command": "Slave command",
+    "master_title": "Master: {name}",
+    "master_switch": "Master Switch",
+    "master_label": "Master",
+    "slaves_label": "Slaves",
+    "device_removed_degraded": "Device removed — group degraded ({remaining} devices remaining, still functional)",
+    "device_removed_condemned": "Device removed — group condemned ({remaining} device(s) remaining, needs repair)",
+    "slave_removed_degraded": "Slave removed — group degraded ({remaining} slave(s) remaining, still functional)",
+    "slave_removed_condemned": "Slave removed — group condemned ({remaining} slave(s) remaining, needs repair)"
   },
   "master_wizard": {
     "master_name": "Virtual device name",

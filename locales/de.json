@@ -69,12 +69,29 @@
     "actual": "Tatsächlich",
     "show_status_label": "Subgeräte-Status auf Linked Switch-Karten anzeigen:",
     "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:",
-    "debug_logging_label": "Debug-Protokollierung aktivieren:"
+    "debug_logging_label": "Debug-Protokollierung aktivieren:",
+    "boot_sync_label": "Boot-Synchronisierung (Linked Switch):",
+    "boot_sync_keep_virtual": "Gruppenzustand beibehalten",
+    "boot_sync_any_on_wins": "Jedes ON gewinnt",
+    "boot_sync_hint": "Beim Neustart von Homey stellt \"Gruppenzustand beibehalten\" den zuletzt gespeicherten EIN/AUS-Zustand der Gruppe auf den Geräten wieder her (z. B. nach einem Stromausfall). \"Jedes ON gewinnt\" schaltet die Gruppe EIN, sobald ein Gerät EIN ist."
   },
   "sync": {
     "virtual_switch": "Virtueller Schalter",
     "health_check": "Gesundheitscheck",
-    "notification_excerpt": "Verknüpfte Schalter \"{group}\": {devices}"
+    "notification_excerpt": "Verknüpfte Schalter \"{group}\": {devices}",
+    "on": "An",
+    "off": "Aus",
+    "none": "Keine",
+    "master_command": "Master-Befehl",
+    "slave_command": "Slave-Befehl",
+    "master_title": "Master: {name}",
+    "master_switch": "Master-Schalter",
+    "master_label": "Master",
+    "slaves_label": "Slaves",
+    "device_removed_degraded": "Gerät entfernt — Gruppe eingeschränkt (noch {remaining} Geräte, weiterhin funktionsfähig)",
+    "device_removed_condemned": "Gerät entfernt — Gruppe unbrauchbar (noch {remaining} Gerät(e), Reparatur nötig)",
+    "slave_removed_degraded": "Slave entfernt — Gruppe eingeschränkt (noch {remaining} Slave(s), weiterhin funktionsfähig)",
+    "slave_removed_condemned": "Slave entfernt — Gruppe unbrauchbar (noch {remaining} Slave(s), Reparatur nötig)"
   },
   "master_wizard": {
     "master_name": "Name des virtuellen Geräts",

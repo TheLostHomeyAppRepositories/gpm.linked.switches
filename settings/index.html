@@ -71,7 +71,8 @@
       display: flex; align-items: center; gap: 8px;
       margin-bottom: 12px; font-size: 12px; color: #666;
     }
-    .mode-row input { cursor: pointer; }
+    .mode-row input, .mode-row select { cursor: pointer; }
+    .hint { font-size: 11px; color: #888; margin: -6px 0 12px; }
   </style>
 </head>
 <body>
@@ -87,6 +88,15 @@
     <span id="lbl-show-master-status"></span>
     <input type="checkbox" id="show-master-status-toggle" onchange="changeShowMasterStatus(this.checked)" />
   </div>
+
+  <div class="mode-row">
+    <span id="lbl-boot-sync"></span>
+    <select id="boot-sync-select" onchange="changeBootSync(this.value)">
+      <option value="keep_virtual" id="opt-keep-virtual"></option>
+      <option value="any_on_wins" id="opt-any-on-wins"></option>
+    </select>
+  </div>
+  <div class="hint" id="lbl-boot-sync-hint"></div>
 
   <div class="mode-row">
     <span id="lbl-debug-logging"></span>
@@ -204,6 +214,10 @@
       Homey.set('show_master_status', !!val, function() {});
     }
 
+    function changeBootSync(val) {
+      Homey.set('boot_sync_policy', val, function() {});
+    }
+
     function changeDebugLogging(val) {
       Homey.set('debug_logging', !!val, function() {});
     }
@@ -246,6 +260,10 @@
       document.getElementById('lbl-loading').textContent = Homey.__('settings.loading');
       document.getElementById('lbl-show-status').textContent = Homey.__('settings.show_status_label');
       document.getElementById('lbl-show-master-status').textContent = Homey.__('settings.show_master_status_label');
+      document.getElementById('lbl-boot-sync').textContent = Homey.__('settings.boot_sync_label');
+      document.getElementById('opt-keep-virtual').textContent = Homey.__('settings.boot_sync_keep_virtual');
+      document.getElementById('opt-any-on-wins').textContent = Homey.__('settings.boot_sync_any_on_wins');
+      document.getElementById('lbl-boot-sync-hint').textContent = Homey.__('settings.boot_sync_hint');
       document.getElementById('lbl-debug-logging').textContent = Homey.__('settings.debug_logging_label');
 
       Homey.get('show_device_status', function(err, val) {
@@ -254,6 +272,10 @@
 
       Homey.get('show_master_status', function(err, val) {
         document.getElementById('show-master-status-toggle').checked = val === true || val === 'true';
+      });
+
+      Homey.get('boot_sync_policy', function(err, val) {
+        document.getElementById('boot-sync-select').value = val === 'any_on_wins' ? 'any_on_wins' : 'keep_virtual';
       });
 
       Homey.get('debug_logging', function(err, val) {
@@ -269,6 +291,9 @@
         }
         if (key === 'show_master_status') {
           document.getElementById('show-master-status-toggle').checked = value === true || value === 'true';
+        }
+        if (key === 'boot_sync_policy') {
+          document.getElementById('boot-sync-select').value = value === 'any_on_wins' ? 'any_on_wins' : 'keep_virtual';
         }
         if (key === 'debug_logging') {
           document.getElementById('debug-logging-toggle').checked = value === true || value === 'true';

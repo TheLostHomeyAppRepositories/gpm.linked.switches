@@ -9,8 +9,6 @@ class SwitchSyncDriver extends Driver {
 
     this.homey.flow.getConditionCard('group_is_synced')
       .registerRunListener(async (args) => args.device.isGroupSynced());
-    this.homey.flow.getConditionCard('group_pending_offline')
-      .registerRunListener(async (args) => args.device.isGroupPendingOffline());
     this.homey.flow.getActionCard('force_resync')
       .registerRunListener(async (args) => { await args.device.forceResync(); });
   }
