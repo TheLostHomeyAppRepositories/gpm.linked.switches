@@ -162,7 +162,7 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 
 ## Flow cards
 
-Each group exposes the following Flow cards (found under the group device):
+The Flow cards below are **deprecated**: they no longer appear when creating new Flows, but Flows that already use them keep working. Sync recovery is automatic (startup and re-subscribe alignment, health check every 10 minutes, optional Auto-Heal), and failures are shown in the Desync Log and, if enabled, as a push notification.
 
 - **Trigger — "A device failed to sync"** — fires when a device fails to reach the expected state. Tokens: device name, expected state, actual state.
 - **Condition — "Group is fully synced"** — true when every device matches the group state (no pending failures or offline devices).

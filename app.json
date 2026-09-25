@@ -91,6 +91,7 @@
   "flow": {
     "triggers": [
       {
+        "deprecated": true,
         "title": {
           "en": "A device failed to sync",
           "nl": "Een apparaat kon niet synchroniseren",
@@ -152,6 +153,7 @@
     ],
     "conditions": [
       {
+        "deprecated": true,
         "title": {
           "en": "Group !{{is|is not}} fully synced",
           "nl": "Groep !{{is|is niet}} volledig gesynchroniseerd",
@@ -172,6 +174,7 @@
     ],
     "actions": [
       {
+        "deprecated": true,
         "title": {
           "en": "Force resync",
           "nl": "Forceer hersynchronisatie",
