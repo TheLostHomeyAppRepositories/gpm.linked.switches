@@ -3,3 +3,4 @@ other/
 TODO.md
 *.log
 .claude/
+test/

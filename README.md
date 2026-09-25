@@ -115,7 +115,7 @@ A global setting (app **Configure** page) for **Linked Switch** groups. It decid
 
 Notes:
 
-- The policy only applies at startup. Later re-subscriptions (health check, Repair) always keep the group's current state.
+- The policy only applies at startup. Later re-subscriptions (health check, Repair) follow **Any ON wins**, because a missed change means the saved group state may be stale.
 - A group that has no saved state yet (just created) adopts its devices' state, whichever policy is set.
 - With **Keep group state**, a wall switch flipped while Homey was down is reverted to the group's saved state.
 - Switch Master groups are not affected.

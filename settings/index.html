@@ -265,7 +265,7 @@
       });
 
       Homey.get('boot_sync_policy', function(err, val) {
-        document.getElementById('boot-sync-select').value = val === 'any_on_wins' ? 'any_on_wins' : 'keep_virtual';
+        document.getElementById('boot-sync-select').value = val;
       });
 
       Homey.on('settings.set', function(key, value) {
@@ -279,7 +279,7 @@
           document.getElementById('show-master-status-toggle').checked = value === true || value === 'true';
         }
         if (key === 'boot_sync_policy') {
-          document.getElementById('boot-sync-select').value = value === 'any_on_wins' ? 'any_on_wins' : 'keep_virtual';
+          document.getElementById('boot-sync-select').value = value;
         }
       });
 

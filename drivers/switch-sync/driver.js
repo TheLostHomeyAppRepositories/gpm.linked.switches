@@ -129,10 +129,11 @@ class SwitchSyncDriver extends Driver {
         store: {
           deviceIds: pendingConfig.deviceIds,
           primaryDeviceId: pendingConfig.primaryDeviceId || null,
+          pendingInitialSync: true,
         },
         settings: {
           suppress_ms: 2000,
-          linked_devices_info: 'Pending sync...',
+          linked_devices_info: '',
         },
       }];
     });

@@ -64,7 +64,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     this._isBootSync = false;
 
     // The first subscribe after init follows the global boot sync policy;
-    // later re-subscribes always keep the current group state.
+    // later re-subscribes adopt the devices' state (see _resolveSyncPolicy).
     this._bootPending = true;
 
     // Same-tick dedup
@@ -186,7 +186,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     await this._syncSubCapabilities(deviceIds);
 
     try {
-      const namesStr = Array.from(this._deviceNames.values()).join('\n') || this.homey.__('sync.none');
+      const namesStr = Array.from(this._deviceNames.values()).join('\n');
       await this.setSettings({ linked_devices_info: namesStr });
     } catch (err) {
       this.error(`Failed to update settings: ${err.message}`);
@@ -226,15 +226,18 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     }
   }
 
-  // The first subscribe after init follows the global `boot_sync_policy`; re-subscribes
-  // (health check, Repair) always keep the group's current state. A group with no saved
-  // state yet has nothing to keep, so it adopts the devices' state.
+  // The first subscribe after init follows the global `boot_sync_policy`. Re-subscribes
+  // (health check, Repair) adopt the devices' state: the listener may have missed changes,
+  // so the stored group state can be stale and must not overwrite a real toggle. A just-paired
+  // group has no saved state to keep either, so it adopts the devices' state too.
   _resolveSyncPolicy() {
     const isBoot = this._bootPending;
     this._bootPending = false;
 
-    if (typeof this.getCapabilityValue('onoff') !== 'boolean') return 'any_on_wins';
-    if (!isBoot) return 'keep_virtual';
+    const isNewGroup = this.getStoreValue('pendingInitialSync') === true;
+    if (isNewGroup) this.setStoreValue('pendingInitialSync', false).catch(() => {});
+
+    if (!isBoot || isNewGroup || typeof this.getCapabilityValue('onoff') !== 'boolean') return 'any_on_wins';
 
     const policy = this.homey.settings.get('boot_sync_policy');
     return BOOT_SYNC_POLICIES.includes(policy) ? policy : DEFAULT_BOOT_SYNC_POLICY;
