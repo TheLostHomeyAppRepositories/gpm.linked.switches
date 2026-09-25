@@ -28,9 +28,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     this._listeners   = new Map();
     this._deviceNames = new Map();
 
-    // Echo suppression: deviceId → { value, timer }
-    this._suppress = new Map();
-
     // Last time a listener reported a value for a device
     this._lastListenerUpdate = new Map();
 
@@ -250,10 +247,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     const remaining = deviceIds.length;
     const degraded = remaining >= 2;
     this.error(`[${this.getName()}] Removed ghost device "${ghostName}" — no longer exists in Homey (${remaining} remaining${degraded ? ', group degraded' : ', group condemned'})`);
-    this.homey.app.addSyncReport({
-      timestamp: new Date().toISOString(),
-      group:     this.getName(),
-      trigger:   this.homey.__('sync.health_check'),
+    this._addSyncReport({
       value:     null,
       devices:   [{ name: ghostName, synced: false, removed: true }],
       hasError:  true,
@@ -412,7 +406,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     if (!this.getSetting('auto_heal')) return;
 
     const now        = Date.now();
-    const suppressMs = this.getSetting('suppress_ms') || 2000;
+    const suppressMs = this._suppressMs();
     const COOLDOWN   = 20000;
 
     for (const { deviceId, name, expected } of desynced) {
@@ -464,7 +458,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
         this._pendingOffline.delete(sourceId);
         const entry = this._listeners.get(sourceId);
         if (entry) {
-          const suppressMs = this.getSetting('suppress_ms') || 2000;
+          const suppressMs = this._suppressMs();
           await this._setDeviceValue(entry.device, sourceId, pendingValue, suppressMs);
         }
         return;
@@ -472,8 +466,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     }
 
     // Echo suppression — callback caused by our own command
-    const suppressed = this._suppress.get(sourceId);
-    if (suppressed && suppressed.value === value) {
+    if (this._isSuppressed(sourceId, value)) {
       this._debug(`echo suppressed from "${sourceName}" (${value})`);
 
       // Echo IS the confirmation — mark expected state as verified and record timing
@@ -536,7 +529,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
     const deviceIds  = this.getStoreValue('deviceIds') || [];
     const primaryId  = this._primaryDeviceId;
-    const suppressMs = this.getSetting('suppress_ms') || 2000;
+    const suppressMs = this._suppressMs();
 
     // Order: primary first (if set and not the source), then the rest.
     const orderedIds = [...deviceIds];
@@ -606,10 +599,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
   // ─── Set a single device value with echo suppression ─────────────────────
 
   async _setDeviceValue(device, deviceId, value, suppressMs) {
-    const existing = this._suppress.get(deviceId);
-    if (existing) this.homey.clearTimeout(existing.timer);
-    const timer = this.homey.setTimeout(() => this._suppress.delete(deviceId), suppressMs);
-    this._suppress.set(deviceId, { value, timer });
+    this._suppressDevice(deviceId, value, suppressMs);
 
     try {
       this._debug(`write -> ${value ? 'ON' : 'OFF'} to "${device.name}"`);
@@ -755,10 +745,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
     if (recovered.length > 0) {
       this._debug(`health check recovered ${recovered.length} device(s): ${recovered.map(r => r.name).join(', ')}`);
-      this.homey.app.addSyncReport({
-        timestamp: new Date().toISOString(),
-        group:     this.getName(),
-        trigger:   this.homey.__('sync.health_check'),
+      this._addSyncReport({
         value:     virtualValue,
         devices:   recovered.map(r => ({ name: r.name, synced: true, recovered: true, durationMs: r.durationMs, repeatCount: r.repeatCount })),
         hasError:  false,
@@ -789,10 +776,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     if (newDesyncs.length > 0 && canResubscribe) {
       this._lastResubscribeAt = now;
       this.error(`[${this.getName()}] Re-subscribing due to desync: ${newDesyncs.map(d => d.name).join(', ')}`);
-      this.homey.app.addSyncReport({
-        timestamp: new Date().toISOString(),
-        group:     this.getName(),
-        trigger:   this.homey.__('sync.health_check'),
+      this._addSyncReport({
         value:     virtualValue,
         devices:   newDesyncs.map(d => ({ name: d.name, synced: false, expected: d.expected, actual: d.actual })),
         hasError:  true,
@@ -805,10 +789,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
     if (newDesyncs.length > 0) {
       this.error(`[${this.getName()}] Health check: ${newDesyncs.length} new desync(s) — ${newDesyncs.map(d => `${d.name}(${d.actual ? 'ON' : 'OFF'})`).join(', ')}`);
-      this.homey.app.addSyncReport({
-        timestamp: new Date().toISOString(),
-        group:     this.getName(),
-        trigger:   this.homey.__('sync.health_check'),
+      this._addSyncReport({
         value:     virtualValue,
         devices:   newDesyncs.map(d => ({ name: d.name, synced: false, expected: d.expected, actual: d.actual })),
         hasError:  true,

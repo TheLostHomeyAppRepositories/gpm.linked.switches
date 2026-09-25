@@ -43,7 +43,6 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     this._master = null;
     this._slaves = new Map();
     this._deviceNames = new Map();
-    this._suppress = new Map();
     this._registeredControlCaps = new Set();
     this._settingVirtualMaster = false;
     this._syncingMasterFromUnanimity = false;
@@ -203,10 +202,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     const remaining = slaveIds.length;
     const degraded = remaining >= MIN_SLAVES;
     this.error(`[${this.getName()}] Removed ghost slave "${ghostName}" — no longer exists in Homey (${remaining} remaining${degraded ? ', group degraded' : ', group condemned'})`);
-    this.homey.app.addSyncReport({
-      timestamp: new Date().toISOString(),
-      group:     this.getName(),
-      trigger:   this.homey.__('sync.health_check'),
+    this._addSyncReport({
       value:     null,
       devices:   [{ name: ghostName, synced: false, removed: true }],
       hasError:  true,
@@ -223,10 +219,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     const masterDeviceId = this.getStoreValue('masterDeviceId');
     const ghostName = deviceName || this._deviceNames.get(masterDeviceId) || masterDeviceId;
     this.error(`[${this.getName()}] Master "${ghostName}" no longer exists in Homey — group needs repair`);
-    this.homey.app.addSyncReport({
-      timestamp: new Date().toISOString(),
-      group:     this.getName(),
-      trigger:   this.homey.__('sync.health_check'),
+    this._addSyncReport({
       value:     null,
       devices:   [{ name: ghostName, synced: false, removed: true }],
       hasError:  true,
@@ -385,9 +378,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
   // Report a failed write to the unified app error log.
   _reportWriteError(role, name, expected, errorMessage) {
     if (!this.homey || !this.homey.app || typeof this.homey.app.addSyncReport !== 'function') return;
-    this.homey.app.addSyncReport({
-      timestamp: new Date().toISOString(),
-      group: this.getName(),
+    this._addSyncReport({
       trigger: this.homey.__(role === 'master' ? 'sync.master_command' : 'sync.slave_command'),
       value: expected,
       devices: [{ name, synced: false, expected, actual: null, errorMessage }],
@@ -500,7 +491,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
   async _setPhysicalMaster(value, source) {
     if (!this._master || !this._master.device.available) return;
 
-    const suppressMs = this.getSetting('suppress_ms') || 2000;
+    const suppressMs = this._suppressMs();
     this._suppressDevice(this._master.deviceId, value, suppressMs);
     this._debug('write start', { role: 'master', source, device: this._master.device.name, value, suppressMs });
 
@@ -517,7 +508,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
 
   async _setAllSlaves(value, source) {
     const slaveIds = this.getStoreValue('deviceIds') || [];
-    const suppressMs = this.getSetting('suppress_ms') || 2000;
+    const suppressMs = this._suppressMs();
 
     this._debug('propagate', { source, value, slaveCount: slaveIds.length, staggerMs: SLAVE_STAGGER_MS });
 
@@ -558,7 +549,7 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     const entry = this._slaves.get(deviceId);
     if (!entry || !entry.device.available) return;
 
-    const suppressMs = this.getSetting('suppress_ms') || 2000;
+    const suppressMs = this._suppressMs();
     this._debug('write start', { role: 'slave', source, device: entry.device.name, value, suppressMs });
 
     this._suppressDevice(deviceId, value, suppressMs);
@@ -601,22 +592,6 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     } finally {
       this._syncingMasterFromUnanimity = false;
     }
-  }
-
-  _suppressDevice(deviceId, value, suppressMs) {
-    const old = this._suppress.get(deviceId);
-    if (old && old.timer) this.homey.clearTimeout(old.timer);
-
-    const timer = this.homey.setTimeout(() => {
-      this._suppress.delete(deviceId);
-    }, suppressMs);
-
-    this._suppress.set(deviceId, { value, timer });
-  }
-
-  _isSuppressed(deviceId, value) {
-    const entry = this._suppress.get(deviceId);
-    return Boolean(entry && entry.value === value);
   }
 
   async _updateLinkedDevicesSetting() {
