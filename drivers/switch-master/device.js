@@ -1,7 +1,7 @@
 'use strict';
 
 const LinkedGroupDevice = require('../../lib/LinkedGroupDevice');
-const { SLAVE_STAGGER_MS } = require('../../lib/constants');
+const { SLAVE_STAGGER_MS, PENDING_OFFLINE_TTL_MS } = require('../../lib/constants');
 
 const MIN_SLAVES = 2;
 const MAX_SLAVES = 9;
@@ -49,6 +49,9 @@ class SwitchMasterDevice extends LinkedGroupDevice {
 
     // Delayed error reports: deviceId -> { timer, expected, role, name }
     this._pendingErrorReports = new Map();
+
+    // Commands a slave missed while unavailable: deviceId -> { value, timestamp }
+    this._missedWrites = new Map();
 
     this.registerCapabilityListener('onoff', this._onVirtualMasterChanged.bind(this));
     await this._subscribeToDevices();
@@ -173,6 +176,10 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     }
     await this.setStoreValue('deviceNames', persistedNames).catch(() => {});
 
+    for (const id of this._missedWrites.keys()) {
+      if (!slaveIds.includes(id)) this._missedWrites.delete(id);
+    }
+
     if (missingCount > 0) {
       await this.setUnavailable(`${missingCount} ${this.homey.__('error.missing_devices')}`).catch(() => {});
     } else if (!this._master) {
@@ -231,6 +238,8 @@ class SwitchMasterDevice extends LinkedGroupDevice {
   // ─── Health check (periodic + boot) — re-subscribe missing listeners ─────
 
   async _verifyGroupHealth() {
+    await this._flushMissedWrites();
+
     const now = Date.now();
     const canResubscribe = now - this._lastResubscribeAt > this._resubscribeCooldown;
     if (!canResubscribe) return;
@@ -477,6 +486,14 @@ class SwitchMasterDevice extends LinkedGroupDevice {
       return;
     }
 
+    const missed = this._missedWrites.get(deviceId);
+    if (missed) {
+      await this._flushMissedWrites();
+      // A value that differs from the missed command is the slave's power-on state, which we
+      // just overwrote: it is not a user change.
+      if (missed.value !== value) return;
+    }
+
     const index = (this.getStoreValue('deviceIds') || []).indexOf(deviceId);
     if (index !== -1) {
       await this._updateControlValue(deviceId).catch(err => {
@@ -506,9 +523,15 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     }
   }
 
-  async _setAllSlaves(value, source) {
+  _setAllSlaves(value, source) {
+    // Queued: two quick toggles must not interleave their per-slave write loops.
+    return this._enqueue(() => this._setAllSlavesNow(value, source));
+  }
+
+  async _setAllSlavesNow(value, source) {
     const slaveIds = this.getStoreValue('deviceIds') || [];
     const suppressMs = this._suppressMs();
+    const writes = [];
 
     this._debug('propagate', { source, value, slaveCount: slaveIds.length, staggerMs: SLAVE_STAGGER_MS });
 
@@ -520,9 +543,12 @@ class SwitchMasterDevice extends LinkedGroupDevice {
         continue;
       }
       if (!entry.device.available) {
+        // Remembered, and applied once the slave is back (see _flushMissedWrites).
+        this._missedWrites.set(deviceId, { value, timestamp: Date.now() });
         this.error(`[${this.getName()}] ${source}: slave "${entry.device.name}" is unavailable`);
         continue;
       }
+      this._missedWrites.delete(deviceId);
 
       const staggerMs = index > 0 ? SLAVE_STAGGER_MS : 0;
       if (staggerMs > 0) {
@@ -533,15 +559,46 @@ class SwitchMasterDevice extends LinkedGroupDevice {
       this._suppressDevice(deviceId, value, suppressMs);
       await this._setControlCapValue(this._controlCapId(index + 1), value).catch(() => {});
 
-      try {
-        const result = await this._setRemoteOnOff(entry.device, value, `slave "${entry.device.name}"`);
-        if (!result.ok) throw new Error(result.errorMessage);
-        this._debug('write ok', { role: 'slave', source, device: entry.device.name, value });
-        await this._updateStatusCapability(deviceId, value).catch(() => {});
-      } catch (err) {
-        this._scheduleErrorReport('slave', entry.device.name, deviceId, value, err.message);
-        this.error(`[${this.getName()}] Failed to set slave "${entry.device.name}": ${err.message}`);
+      // Started staggered and awaited together: a slave that times out (10 s) does not
+      // hold back the ones after it.
+      writes.push(this._writeSlave(entry, deviceId, value, source));
+    }
+
+    await Promise.all(writes);
+  }
+
+  // Sends one slave its value; failures are reported, never thrown.
+  async _writeSlave(entry, deviceId, value, source) {
+    try {
+      const result = await this._setRemoteOnOff(entry.device, value, `slave "${entry.device.name}"`);
+      if (!result.ok) throw new Error(result.errorMessage);
+      this._debug('write ok', { role: 'slave', source, device: entry.device.name, value });
+      await this._updateStatusCapability(deviceId, value).catch(() => {});
+    } catch (err) {
+      this._scheduleErrorReport('slave', entry.device.name, deviceId, value, err.message);
+      this.error(`[${this.getName()}] Failed to set slave "${entry.device.name}": ${err.message}`);
+    }
+  }
+
+  _flushMissedWrites() {
+    return this._enqueue(() => this._flushMissedWritesNow());
+  }
+
+  // Applies the commands slaves missed while unavailable, unless they are too old to still be wanted.
+  async _flushMissedWritesNow() {
+    const now = Date.now();
+    for (const [deviceId, { value, timestamp }] of [...this._missedWrites]) {
+      if (now - timestamp > PENDING_OFFLINE_TTL_MS) {
+        this._missedWrites.delete(deviceId);
+        continue;
       }
+      const entry = this._slaves.get(deviceId);
+      if (!entry || !entry.device.available) continue;
+
+      this._missedWrites.delete(deviceId);
+      if (entry.onoffInstance.value === value) continue;
+      this._suppressDevice(deviceId, value, this._suppressMs());
+      await this._writeSlave(entry, deviceId, value, 'missed command');
     }
   }
 
@@ -555,14 +612,8 @@ class SwitchMasterDevice extends LinkedGroupDevice {
     this._suppressDevice(deviceId, value, suppressMs);
     const index = (this.getStoreValue('deviceIds') || []).indexOf(deviceId);
     if (index !== -1) await this._setControlCapValue(this._controlCapId(index + 1), value).catch(() => {});
-    try {
-      const result = await this._setRemoteOnOff(entry.device, value, `slave "${entry.device.name}"`);
-      if (!result.ok) throw new Error(result.errorMessage);
-      await this._updateStatusCapability(deviceId, value).catch(() => {});
-    } catch (err) {
-      this._scheduleErrorReport('slave', entry.device.name, deviceId, value, err.message);
-      this.error(`[${this.getName()}] Failed to set slave "${entry.device.name}": ${err.message}`);
-    }
+    this._missedWrites.delete(deviceId);
+    await this._writeSlave(entry, deviceId, value, source);
 
     await this._syncMasterFromUnanimity();
   }

@@ -2,7 +2,6 @@
 
 const Homey = require('homey');
 const { HomeyAPI } = require('homey-api');
-const { BOOT_SYNC_POLICIES, DEFAULT_BOOT_SYNC_POLICY } = require('./lib/constants');
 
 module.exports = class SwitchSyncApp extends Homey.App {
 
@@ -23,9 +22,6 @@ module.exports = class SwitchSyncApp extends Homey.App {
     }
     if (this.homey.settings.get('show_master_status') === undefined) {
       this.homey.settings.set('show_master_status', 'false');
-    }
-    if (!BOOT_SYNC_POLICIES.includes(this.homey.settings.get('boot_sync_policy'))) {
-      this.homey.settings.set('boot_sync_policy', DEFAULT_BOOT_SYNC_POLICY);
     }
 
     // Avoid false-positive MaxListenersExceededWarning caused by Homey SDK
@@ -57,17 +53,19 @@ module.exports = class SwitchSyncApp extends Homey.App {
     this.homey.settings.unset('debug_logging');
   }
 
+  // One shared client. The promise is cached (not the result) so the devices that all start
+  // at once share one client; a failed attempt is dropped so the next call retries.
   async getHomeyAPI() {
     if (!this._homeyAPI) {
-      this._homeyAPI = await HomeyAPI.createAppAPI({ homey: this.homey });
+      this._homeyAPI = HomeyAPI.createAppAPI({ homey: this.homey }).catch(err => {
+        this._homeyAPI = null;
+        throw err;
+      });
     }
     return this._homeyAPI;
   }
 
   addSyncReport(report) {
-    // Suppress writes for 3s after a manual clear (health check race)
-    if (this._clearTs && Date.now() - this._clearTs < 3000) return;
-
     // The settings log only tracks sync failures and recoveries.
     // Successful syncs are visible in each device's own Homey history.
     if (!report.hasError && !report.important) return;
@@ -99,16 +97,6 @@ module.exports = class SwitchSyncApp extends Homey.App {
         this.homey.settings.set('desyncLog', this._syncLog);
       }, 60000);
     }
-  }
-
-  clearSyncLog() {
-    if (this._syncLogTimer) {
-      this.homey.clearTimeout(this._syncLogTimer);
-      this._syncLogTimer = null;
-    }
-    this._syncLog = [];
-    this._clearTs = Date.now();
-    this.homey.settings.set('desyncLog', []);
   }
 
   // ON/OFF, or '?' when the state is unknown (a failed write, a removed device).
@@ -159,17 +147,6 @@ module.exports = class SwitchSyncApp extends Homey.App {
         }
       }
     }
-  }
-
-  async onApi(method, path, body) {
-    this.log(`onApi called: ${method} "${path}"`);
-    const normalPath = path.startsWith('/') ? path : `/${path}`;
-    if (method === 'POST' && normalPath === '/clear-log') {
-      this.clearSyncLog();
-      this.log('onApi: clearSyncLog done');
-      return { ok: true };
-    }
-    throw new Error(`Unknown API: ${method} ${path}`);
   }
 
   // Returns all devices with onoff capability, excluding our own driver, with zone info

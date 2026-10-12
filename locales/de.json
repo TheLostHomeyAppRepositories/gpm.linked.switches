@@ -15,7 +15,8 @@
     "primary_short": "Pri",
     "primary_hint": "Optional. Wähle das Gerät, das direkt mit der Lampe oder Steckdose verbunden ist. Es wird zuerst gesteuert.",
     "primary_selected": "Primär ausgewählt",
-    "no_primary": "Kein Primär ausgewählt"
+    "no_primary": "Kein Primär ausgewählt",
+    "err_max10": "Bitte wählen Sie höchstens 10 Geräte aus."
   },
   "pair": {
     "title": "Schaltergruppe erstellen",
@@ -31,7 +32,6 @@
     "btn_save": "Änderungen speichern",
     "err_save": "Fehler beim Speichern der Gruppe.",
     "err_load": "Fehler beim Laden der Konfiguration.",
-    "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparatur für diese Gruppe oder lösche sie zuerst.",
     "err_min2": "Bitte mindestens 2 Geräte auswählen.",
     "selected_label": "Aktuell ausgewählt",
     "not_found": "nicht mehr gefunden"
@@ -50,8 +50,7 @@
     "save": "Speichern",
     "saved": "Gespeichert ✓",
     "err_save": "Fehler beim Speichern der Einstellungen.",
-    "err_suppress_range": "Unterdrückungsfenster muss 500–10000 ms sein.",
-    "err_primary_not_selected": "Das Primärgerät muss eines der ausgewählten Geräte sein."
+    "err_suppress_range": "Unterdrückungsfenster muss 500–10000 ms sein."
   },
   "error": {
     "missing_devices": "verknüpfte(s) Gerät(e) nicht mehr gefunden. Bitte diese Gruppe reparieren.",
@@ -63,14 +62,8 @@
     "clear": "Log löschen",
     "loading": "Laden...",
     "empty": "Keine Desynchronisierungsereignisse aufgezeichnet.",
-    "expected": "Erwartet",
-    "actual": "Tatsächlich",
     "show_status_label": "Subgeräte-Status auf Linked Switch-Karten anzeigen:",
-    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:",
-    "boot_sync_label": "Boot-Synchronisierung (Linked Switch):",
-    "boot_sync_keep_virtual": "Gruppenzustand beibehalten",
-    "boot_sync_any_on_wins": "Jedes ON gewinnt",
-    "boot_sync_hint": "Beim Neustart von Homey stellt \"Gruppenzustand beibehalten\" den zuletzt gespeicherten EIN/AUS-Zustand der Gruppe auf den Geräten wieder her. \"Jedes ON gewinnt\" schaltet die Gruppe EIN, sobald ein Gerät EIN ist."
+    "show_master_status_label": "Subgeräte-Status auf Switch Master-Karten anzeigen:"
   },
   "sync": {
     "virtual_switch": "Virtueller Schalter",
@@ -93,18 +86,12 @@
     "master_missing": "Master-Gerät fehlt — Gruppe muss repariert werden"
   },
   "master_wizard": {
-    "master_name": "Name des virtuellen Geräts",
-    "devices_to_control": "Zu steuernde Schalter",
-    "hint_2_9": "Wähle 2 bis 9 Schalter mit ON/OFF-Funktion.",
     "err_min2": "Bitte mindestens 2 Schalter auswählen.",
     "err_max9": "Bitte nicht mehr als 9 Schalter auswählen.",
     "err_device_conflict": "Ein oder mehrere Geräte werden bereits verwendet von: \"{names}\". Verwende Reparieren für diese Gruppe oder lösche sie zuerst.",
     "virtual_name": "Name des virtuellen Geräts",
     "master_device": "Primärschalter",
-    "master_placeholder": "Primärschalter auswählen",
     "master_hint": "Optional. Wähle den physischen Schalter, der direkt mit der Lampe oder Steckdose verbunden ist, um ihn zuerst zu steuern. Leer lassen, wenn alle Schalter indirekt sind (z. B. Hue-Lampen über Wandschalter).",
-    "selected_master": "Ausgewählter Primärschalter",
-    "change_master": "Primärschalter ändern",
     "slave_devices": "Gesteuerte Schalter",
     "slave_hint": "Wähle 2 bis 9 Schalter zum Steuern aus.",
     "master": "Primär",
@@ -113,7 +100,6 @@
     "slave_short": "Ctl",
     "master_selected": "Primärschalter ausgewählt",
     "no_master": "Kein Primärschalter ausgewählt",
-    "hint_master_slaves": "Wähle einen physischen Primärschalter und 2 bis 9 gesteuerte Schalter.",
     "err_master_required": "Bitte einen Primärschalter auswählen."
   },
   "master_pair": {

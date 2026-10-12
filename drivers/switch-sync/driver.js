@@ -1,6 +1,8 @@
 'use strict';
 
 const { Driver } = require('homey');
+const { buildOccupiedMap } = require('../../lib/occupiedMap');
+const { MAX_LINKED_DEVICES } = require('../../lib/constants');
 
 class SwitchSyncDriver extends Driver {
 
@@ -13,49 +15,12 @@ class SwitchSyncDriver extends Driver {
       .registerRunListener(async (args) => { await args.device.forceResync(); });
   }
 
-  // Returns a Map of physicalDeviceId → array of { name, role, driverId, groupId }
-  // for all devices already in a group. Optionally excludes one group by its
-  // Homey device id (for repair).
-  _buildOccupiedMap(excludeHomeyDeviceId = null) {
-    const occupied = new Map();
-    const driverIds = ['switch-sync', 'switch-master'];
-    const markOccupied = (id, entry) => {
-      const current = occupied.get(id) || [];
-      current.push(entry);
-      occupied.set(id, current);
-    };
-
-    for (const driverId of driverIds) {
-      let driver;
-      try {
-        driver = this.homey.drivers.getDriver(driverId);
-      } catch (_) {
-        continue;
-      }
-
-      for (const device of driver.getDevices()) {
-        if (excludeHomeyDeviceId && device.getId() === excludeHomeyDeviceId) continue;
-        const name = device.getName();
-        const groupId = device.getId();
-        const masterId = device.getStoreValue('masterDeviceId');
-        if (masterId) {
-          markOccupied(masterId, { name, role: 'master', driverId, groupId });
-        }
-
-        for (const id of (device.getStoreValue('deviceIds') || []).filter(Boolean)) {
-          markOccupied(id, { name, role: 'member', driverId, groupId });
-        }
-      }
-    }
-    return occupied;
-  }
-
   // Mirrors the validation in switch-master/driver.js:
   // - A LinkSwitch member may also be a slave in a Switch Master.
   // - But both members of the same LinkSwitch cannot be slaves of the same Master.
   // - A device that is a Switch Master primary cannot be in a LinkSwitch.
   _assertNoConflicts(deviceIds, primaryDeviceId, excludeHomeyDeviceId = null) {
-    const occupied = this._buildOccupiedMap(excludeHomeyDeviceId);
+    const occupied = buildOccupiedMap(this.homey, excludeHomeyDeviceId);
     const conflicts = [];
     const linkedFamilies = new Map();
 
@@ -112,6 +77,9 @@ class SwitchSyncDriver extends Driver {
       if (ids.length < 2) {
         throw new Error(this.homey.__('pair.err_min2'));
       }
+      if (ids.length > MAX_LINKED_DEVICES) {
+        throw new Error(this.homey.__('wizard.err_max10'));
+      }
       const primaryId = config.primaryDeviceId || null;
       if (primaryId && !ids.includes(primaryId)) {
         throw new Error(this.homey.__('repair.err_primary_not_selected'));
@@ -156,6 +124,8 @@ class SwitchSyncDriver extends Driver {
       const unique = [...new Set(Array.isArray(config.deviceIds) ? config.deviceIds : [])];
       if (unique.length < 2)
         throw new Error(this.homey.__('repair.err_min2'));
+      if (unique.length > MAX_LINKED_DEVICES)
+        throw new Error(this.homey.__('wizard.err_max10'));
       const primaryId = config.primaryDeviceId || null;
       if (primaryId && !unique.includes(primaryId)) {
         throw new Error(this.homey.__('repair.err_primary_not_selected'));
@@ -166,9 +136,7 @@ class SwitchSyncDriver extends Driver {
 
       await device.setStoreValue('deviceIds', unique).catch(this.error);
       await device.setStoreValue('primaryDeviceId', primaryId).catch(this.error);
-      if (typeof device.reloadConfiguration === 'function') {
-        await device.reloadConfiguration({ align: true }).catch(err => this.error(`reloadConfiguration error: ${err.message}`));
-      }
+      await device.reloadConfiguration({ align: true }).catch(err => this.error(`reloadConfiguration error: ${err.message}`));
       return true;
     });
   }

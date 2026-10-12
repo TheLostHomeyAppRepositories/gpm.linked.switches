@@ -15,7 +15,8 @@
     "primary_short": "Pri",
     "primary_hint": "Opzionale: seleziona il dispositivo collegato direttamente alla luce o alla presa. Verrà controllato per primo.",
     "primary_selected": "Principale selezionato",
-    "no_primary": "Nessun principale selezionato"
+    "no_primary": "Nessun principale selezionato",
+    "err_max10": "Seleziona al massimo 10 dispositivi."
   },
   "pair": {
     "title": "Crea gruppo di interruttori",
@@ -31,7 +32,6 @@
     "btn_save": "Salva modifiche",
     "err_save": "Errore durante il salvataggio del gruppo.",
     "err_load": "Errore durante il caricamento della configurazione.",
-    "err_device_conflict": "Uno o più dispositivi sono già utilizzati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, o eliminalo prima.",
     "err_min2": "Seleziona almeno 2 dispositivi.",
     "selected_label": "Attualmente selezionato",
     "not_found": "non più trovato"
@@ -50,8 +50,7 @@
     "save": "Salva",
     "saved": "Salvato ✓",
     "err_save": "Errore durante il salvataggio delle impostazioni.",
-    "err_suppress_range": "La finestra di soppressione deve essere 500–10000 ms.",
-    "err_primary_not_selected": "Il dispositivo principale deve essere tra quelli selezionati."
+    "err_suppress_range": "La finestra di soppressione deve essere 500–10000 ms."
   },
   "error": {
     "missing_devices": "dispositivo/i collegato/i non trovato/i. Ripara questo gruppo.",
@@ -63,14 +62,8 @@
     "clear": "Cancella registro",
     "loading": "Caricamento...",
     "empty": "Nessun evento di desincronizzazione registrato.",
-    "expected": "Atteso",
-    "actual": "Effettivo",
     "show_status_label": "Mostra lo stato dei subdevice nelle card Linked Switch:",
-    "show_master_status_label": "Mostra lo stato dei subdevice nelle card Switch Master:",
-    "boot_sync_label": "Sincronizzazione all'avvio (Linked Switch):",
-    "boot_sync_keep_virtual": "Mantieni lo stato del gruppo",
-    "boot_sync_any_on_wins": "Qualsiasi ON vince",
-    "boot_sync_hint": "Al riavvio di Homey, «Mantieni lo stato del gruppo» ripristina sui dispositivi l'ultimo stato ON/OFF del gruppo. «Qualsiasi ON vince» accende il gruppo se un dispositivo è ON."
+    "show_master_status_label": "Mostra lo stato dei subdevice nelle card Switch Master:"
   },
   "sync": {
     "virtual_switch": "Interruttore virtuale",
@@ -93,18 +86,12 @@
     "master_missing": "Dispositivo master mancante — il gruppo richiede riparazione"
   },
   "master_wizard": {
-    "master_name": "Nome del dispositivo virtuale",
-    "devices_to_control": "Interruttori da controllare",
-    "hint_2_9": "Seleziona da 2 a 9 interruttori con capacità ON/OFF.",
     "err_min2": "Seleziona almeno 2 interruttori.",
     "err_max9": "Seleziona al massimo 9 interruttori.",
     "err_device_conflict": "Uno o più dispositivi sono già usati da: \"{names}\". Usa Ripara su quel gruppo per modificarlo, oppure eliminalo prima.",
     "virtual_name": "Nome dispositivo virtuale",
     "master_device": "Interruttore principale",
-    "master_placeholder": "Seleziona un interruttore principale",
     "master_hint": "Opzionale. Scegli l'interruttore fisico collegato direttamente alla luce o alla presa per controllarlo per primo. Lascia vuoto se tutti gli interruttori sono indiretti (es. lampade Hue controllate da interruttori a muro).",
-    "selected_master": "Principale selezionato",
-    "change_master": "Cambia principale",
     "slave_devices": "Interruttori controllati",
     "slave_hint": "Scegli da 2 a 9 interruttori da controllare.",
     "master": "Principale",
@@ -113,7 +100,6 @@
     "slave_short": "Ctl",
     "master_selected": "Principale selezionato",
     "no_master": "Nessun principale selezionato",
-    "hint_master_slaves": "Scegli un interruttore fisico principale e da 2 a 9 interruttori controllati.",
     "err_master_required": "Scegli un interruttore principale."
   },
   "master_pair": {

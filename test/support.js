@@ -18,11 +18,16 @@ class FakeApp {
 }
 const load = Module._load;
 
-// Requires a module with `require('homey')` resolved to the stubs above.
-function requireWithHomey(modulePath) {
+// Requires a module with `require('homey')` resolved to the stubs above. `stubs` replaces
+// other modules by name (for example `{ 'homey-api': { HomeyAPI: ... } }`).
+function requireWithHomey(modulePath, stubs = {}) {
   Module._load = function (request, ...rest) {
-    return request === 'homey' ? { Device: FakeDevice, Driver: FakeDriver, App: FakeApp } : load.call(this, request, ...rest);
+    if (request === 'homey') return { Device: FakeDevice, Driver: FakeDriver, App: FakeApp };
+    if (request in stubs) return stubs[request];
+    return load.call(this, request, ...rest);
   };
+  // A module loaded with stubs must not be reused by the next test.
+  if (Object.keys(stubs).length > 0) delete require.cache[require.resolve(modulePath)];
   try {
     return require(modulePath);
   } finally {
@@ -32,8 +37,13 @@ function requireWithHomey(modulePath) {
 
 const LinkedGroupDevice = requireWithHomey('../lib/LinkedGroupDevice');
 
-// Timers are unref'd so a pending verify/health timer never keeps the test run alive.
-const unrefTimeout = (fn, ms) => setTimeout(fn, ms).unref();
+// Long timers (verify, health check) are unref'd so they never keep the test run alive;
+// short ones stay ref'd so a test awaiting a stagger or a write is not cut off.
+const unrefTimeout = (fn, ms) => {
+  const timer = setTimeout(fn, ms);
+  if (ms >= 1000) timer.unref();
+  return timer;
+};
 const unrefInterval = (fn, ms) => setInterval(fn, ms).unref();
 
 function makeDevice({ settings } = {}) {
@@ -54,26 +64,29 @@ function makeDevice({ settings } = {}) {
 
 // A Linked Switch group over fake devices. `state` holds each device's current onoff value
 // (mutate it to simulate a device changing); `writes` records every write sent to a device.
-async function makeSyncGroup({ policy, virtual = null, state, store = {} }) {
+async function makeSyncGroup({ virtual = null, state, store = {}, missing = [] }) {
   const SwitchSyncDevice = require('../drivers/switch-sync/device');
   const writes = [];
   const storeData = { deviceIds: Object.keys(state), ...store };
   const caps = { onoff: virtual };
 
-  const api = { devices: { getDevice: async ({ id }) => ({
+  const api = { devices: { getDevice: async ({ id }) => {
+    if (missing.includes(id)) throw new Error('device not found');
+    return {
     id,
     name: id,
     available: true,
     makeCapabilityInstance: () => ({ get value() { return state[id]; }, destroy() {} }),
     setCapabilityValue: async ({ value }) => { writes.push([id, value]); },
-  }) } };
+    };
+  } } };
 
   const device = new SwitchSyncDevice();
   const { device: base } = makeDevice();
   Object.assign(device, {
     homey: {
       ...base.homey,
-      settings: { get: key => (key === 'boot_sync_policy' ? policy : undefined) },
+      settings: { get: () => undefined },
       flow: { getDeviceTriggerCard: () => ({}) },
       app: { ...base.homey.app, getHomeyAPI: async () => api, _isSettingEnabled: (v, d) => (v == null ? d : Boolean(v)) },
     },

@@ -63,3 +63,19 @@ test('repair saves the de-duplicated list and re-subscribes with alignment', asy
   assert.deepStrictEqual(group.store.deviceIds, ['a', 'c']);
   assert.deepStrictEqual(group.reloaded(), { align: true });
 });
+
+const tenIds = Array.from({ length: 10 }, (_, i) => `d${i}`);
+
+test('pairing accepts 10 devices and rejects 11', async () => {
+  const handlers = await handlersFor(makeDriver(), 'onPair');
+  assert.strictEqual(await handlers.configure_binding({ name: 'G', deviceIds: tenIds }), true);
+  await assert.rejects(handlers.configure_binding({ name: 'G', deviceIds: [...tenIds, 'd10'] }), /wizard\.err_max10/);
+});
+
+test('repair accepts 10 devices and rejects 11', async () => {
+  const group = makeGroup();
+  const handlers = await handlersFor(makeDriver(), 'onRepair', group.device);
+  await handlers.save_config({ deviceIds: tenIds });
+  assert.deepStrictEqual(group.store.deviceIds, tenIds);
+  await assert.rejects(handlers.save_config({ deviceIds: [...tenIds, 'd10'] }), /wizard\.err_max10/);
+});

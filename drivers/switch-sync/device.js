@@ -1,11 +1,7 @@
 'use strict';
 
 const LinkedGroupDevice = require('../../lib/LinkedGroupDevice');
-const {
-  SLAVE_STAGGER_MS,
-  BOOT_SYNC_POLICIES,
-  DEFAULT_BOOT_SYNC_POLICY,
-} = require('../../lib/constants');
+const { SLAVE_STAGGER_MS, PENDING_OFFLINE_TTL_MS } = require('../../lib/constants');
 
 // Extra time after suppressMs before verifying device states.
 // Covers: Nova retries (~1.5s) + Tuya backoff retries (~2.2s) + Zigbee routing latency (~1s each way)
@@ -13,9 +9,6 @@ const VERIFY_DELAY_EXTRA_MS = 5000;
 
 // Discard expected-state entries older than this (stale after user changes things)
 const EXPECTED_STATE_TTL_MS = 5 * 60 * 1000;
-
-// Discard pending-offline entries older than this (device unlikely to return)
-const PENDING_OFFLINE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 class SwitchSyncDevice extends LinkedGroupDevice {
 
@@ -27,9 +20,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     // deviceId → { device, onoffInstance }
     this._listeners   = new Map();
     this._deviceNames = new Map();
-
-    // Last time a listener reported a value for a device
-    this._lastListenerUpdate = new Map();
 
     // Devices offline during propagation: deviceId → targetValue
     this._pendingOffline = new Map();
@@ -43,7 +33,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     // Auto-heal cooldowns: deviceId → timestamp of last heal attempt
     this._healCooldowns = new Map();
 
-    // Active health-check desyncs: deviceId → { expected, actual, startedAt, lastSeenAt, repeatCount }
+    // Active health-check desyncs: deviceId → { expected, actual, startedAt, repeatCount }
     // Dedup the health-check log so a stuck device logs once (opened) and once (resolved),
     // not one identical entry every cycle.
     this._activeDesyncs = new Map();
@@ -51,17 +41,14 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     // Clickable per-device controls.
     this._registeredButtonCaps = new Set();
 
-    // Primary device: controlled first, others follow with stagger
-    this._primaryDeviceId = this.getStoreValue('primaryDeviceId') || null;
-
     // Flow trigger fired when a device fails to reach the expected state
     this._desyncTriggerCard = this.homey.flow.getDeviceTriggerCard('group_desynced');
 
     // Boot sync guard
     this._isBootSync = false;
 
-    // The first subscribe after init follows the global boot sync policy;
-    // later re-subscribes only re-attach listeners (see _resolveSyncPolicy).
+    // The first subscribe after init aligns devices to the group's saved state;
+    // later ones follow _resolveSyncMode.
     this._bootPending = true;
 
     // Same-tick dedup
@@ -108,6 +95,9 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     this._lastPropagatedValue = null;
     this._pendingReportContext = null;
 
+    // Read again on every subscribe: Repair can change the Primary.
+    this._primaryDeviceId = this.getStoreValue('primaryDeviceId') || null;
+
     if (this._verifyTimer) {
       this.homey.clearTimeout(this._verifyTimer);
       this._verifyTimer = null;
@@ -129,7 +119,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
         persistedNames[deviceId] = name;
 
         const onoffInstance = device.makeCapabilityInstance('onoff', value => {
-          this._lastListenerUpdate.set(deviceId, Date.now());
           this._debouncedCallback(deviceId, value, debouncedValue => {
             this._updateButtonValue(deviceId);
             this._updateSubCapStatus(deviceId);
@@ -191,14 +180,13 @@ class SwitchSyncDevice extends LinkedGroupDevice {
       this.error(`Failed to update settings: ${err.message}`);
     }
 
-    const policy = this._resolveSyncPolicy(align);
-    this._debug(`sync policy: ${policy}`);
-    if (!policy) return; // plain re-subscribe: listeners re-attached, state untouched
+    const mode = this._resolveSyncMode(align);
+    this._debug(`sync mode: ${mode}`);
+    if (!mode) return; // plain re-subscribe: listeners re-attached, state untouched
 
     this._isBootSync = true;
     try {
-      // keep_virtual leaves the group's saved state as is; any_on_wins adopts the devices' state.
-      if (policy === 'any_on_wins') {
+      if (mode === 'adopt') {
         let isAnyOn = false;
         for (const { onoffInstance } of this._listeners.values()) {
           if (onoffInstance.value === true) { isAnyOn = true; break; }
@@ -226,23 +214,20 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     }
   }
 
-  // The first subscribe after init follows the global `boot_sync_policy`. A later
-  // re-subscribe (health check) returns null: it only re-attaches listeners, because a failed
-  // write leaves a device out of step and neither adopting that state nor rewriting devices
-  // is safe. Repair (`align`) aligns devices to the group state. A just-paired group has no
-  // saved state to keep, so it adopts its devices' state.
-  _resolveSyncPolicy(align = false) {
+  // What to do with the devices' state once subscribed:
+  //  'adopt' — the group takes its devices' state (a just-paired group has no saved state)
+  //  'align' — devices that differ are set to the group's saved state (app start, Repair)
+  //  null    — a health-check re-subscribe only re-attaches listeners: a failed write leaves a
+  //            device out of step, and neither adopting that nor rewriting devices is safe
+  _resolveSyncMode(align = false) {
     const isBoot = this._bootPending;
     this._bootPending = false;
 
     const isNewGroup = this.getStoreValue('pendingInitialSync') === true;
     if (isNewGroup) this.setStoreValue('pendingInitialSync', false).catch(() => {});
 
-    if (isNewGroup || typeof this.getCapabilityValue('onoff') !== 'boolean') return 'any_on_wins';
-    if (!isBoot) return align ? 'keep_virtual' : null;
-
-    const policy = this.homey.settings.get('boot_sync_policy');
-    return BOOT_SYNC_POLICIES.includes(policy) ? policy : DEFAULT_BOOT_SYNC_POLICY;
+    if (isNewGroup || typeof this.getCapabilityValue('onoff') !== 'boolean') return 'adopt';
+    return isBoot || align ? 'align' : null;
   }
 
   async _removeGhostDevice(deviceId, deviceName) {
@@ -530,7 +515,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     const triggerName = sourceId
       ? (this._deviceNames.get(sourceId) || sourceId)
       : this.homey.__('sync.virtual_switch');
-    this._pendingReportContext = { trigger: triggerName, value, startedAt: Date.now() };
+    this._pendingReportContext = { trigger: triggerName, value };
 
     const deviceIds  = this.getStoreValue('deviceIds') || [];
     const primaryId  = this._primaryDeviceId;
@@ -549,6 +534,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     this._debug('propagate', { value, sourceId, primaryId, count: orderedIds.length });
 
     let index = 0;
+    const writes = [];
     for (const deviceId of orderedIds) {
       if (deviceId === sourceId) continue;
 
@@ -581,12 +567,17 @@ class SwitchSyncDevice extends LinkedGroupDevice {
       // Register expectation — echo callback will mark verified + set syncedAt
       this._expectedStates.set(deviceId, { value, timestamp: Date.now(), verified: false });
 
-      const result = await this._setDeviceValue(device, deviceId, value, suppressMs);
-      if (!result.ok) {
+      // The Primary goes out first and alone. The rest are started staggered and awaited
+      // together, so one device that times out (10 s) does not hold back the ones after it.
+      const write = this._setDeviceValue(device, deviceId, value, suppressMs).then(result => {
+        if (result.ok) return;
         const exp = this._expectedStates.get(deviceId);
         if (exp) exp.errorMessage = result.errorMessage;
-      }
+      });
+      if (deviceId === primaryId) await write;
+      else writes.push(write);
     }
+    await Promise.all(writes);
 
     // Group state changed — refresh the ⚠ markers of devices that didn't echo
     for (const deviceId of deviceIds) this._updateSubCapStatus(deviceId);
@@ -766,10 +757,9 @@ class SwitchSyncDevice extends LinkedGroupDevice {
       const info = this._activeDesyncs.get(d.deviceId);
       if (info) {
         info.repeatCount++;
-        info.lastSeenAt = now;
         info.actual     = d.actual;
       } else {
-        this._activeDesyncs.set(d.deviceId, { expected: d.expected, actual: d.actual, startedAt: now, lastSeenAt: now, repeatCount: 0 });
+        this._activeDesyncs.set(d.deviceId, { expected: d.expected, actual: d.actual, startedAt: now, repeatCount: 0 });
         newDesyncs.push(d);
       }
     }
@@ -855,12 +845,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     await this._propagate(value, null);
   }
 
-  // ─── Settings changed ─────────────────────────────────────────────────────
-
-  async onSettings({ changedKeys }) {
-    this._debug(`settings changed: ${changedKeys.join(', ')}`);
-  }
-
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   async onDeleted() {
@@ -876,7 +860,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
 
     for (const { timer } of this._suppress.values()) this.homey.clearTimeout(timer);
     this._suppress.clear();
-    this._lastListenerUpdate.clear();
 
     this._pendingOffline.clear();
     this._expectedStates.clear();

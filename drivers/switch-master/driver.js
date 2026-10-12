@@ -1,6 +1,7 @@
 'use strict';
 
 const { Driver } = require('homey');
+const { buildOccupiedMap } = require('../../lib/occupiedMap');
 
 const MIN_SLAVES = 2;
 const MAX_SLAVES = 9;
@@ -33,43 +34,8 @@ class SwitchMasterDriver extends Driver {
     return { masterDeviceId, deviceIds: uniqueSlaves };
   }
 
-  _buildSlaveOccupiedMap(excludeHomeyDeviceId = null) {
-    const occupied = new Map();
-    const driverIds = ['switch-sync', 'switch-master'];
-    const markOccupied = (id, entry) => {
-      const current = occupied.get(id) || [];
-      current.push(entry);
-      occupied.set(id, current);
-    };
-
-    for (const driverId of driverIds) {
-      let driver;
-      try {
-        driver = this.homey.drivers.getDriver(driverId);
-      } catch (_) {
-        continue;
-      }
-
-      for (const device of driver.getDevices()) {
-        if (excludeHomeyDeviceId && device.getId() === excludeHomeyDeviceId) continue;
-        const name = device.getName();
-        const groupId = device.getId();
-        const masterId = device.getStoreValue('masterDeviceId');
-        if (masterId) {
-          markOccupied(masterId, { name, role: 'master', driverId, groupId });
-        }
-
-        for (const id of (device.getStoreValue('deviceIds') || []).filter(Boolean)) {
-          markOccupied(id, { name, role: 'member', driverId, groupId });
-        }
-      }
-    }
-
-    return occupied;
-  }
-
   _assertNoConflicts(config, excludeHomeyDeviceId = null) {
-    const occupied = this._buildSlaveOccupiedMap(excludeHomeyDeviceId);
+    const occupied = buildOccupiedMap(this.homey, excludeHomeyDeviceId);
     const slaveIds = [...new Set(config.deviceIds || [])].filter(id => id !== config.masterDeviceId);
     const masterConflicts = occupied.get(config.masterDeviceId) || [];
     const slaveConflicts = [];
@@ -161,9 +127,7 @@ class SwitchMasterDriver extends Driver {
       await device.setStoreValue('masterDeviceId', masterDeviceId).catch(this.error);
       await device.setStoreValue('deviceIds', deviceIds).catch(this.error);
 
-      if (typeof device.reloadConfiguration === 'function') {
-        await device.reloadConfiguration().catch(err => this.error(`reloadConfiguration error: ${err.message}`));
-      }
+      await device.reloadConfiguration().catch(err => this.error(`reloadConfiguration error: ${err.message}`));
 
       return true;
     });

@@ -104,25 +104,6 @@ Turn it on when you have a device that drops commands intermittently but is othe
 
 ---
 
-## Boot Sync Policy
-
-A global setting (app **Configure** page) for **Linked Switch** groups. It decides which state wins when Homey starts, for example after a power outage, when devices may come back in different states:
-
-| Policy | What happens at startup |
-|---|---|
-| **Keep group state** (default) | The group's last saved ON/OFF state is written to every device that differs from it when the app starts. |
-| **Any ON wins** | If any device in the group is ON, the group becomes ON and the rest are turned ON. |
-
-Notes:
-
-- The policy only applies at startup, and only to devices whose state is already known to differ then. A device that reports its state after startup is handled as a normal change.
-- A re-subscription by the health check only re-attaches listeners: it never changes a device or the group. **Repair** aligns the devices to the group's saved state.
-- A group that has no saved state yet (just created) adopts its devices' state, whichever policy is set.
-- With **Keep group state**, a wall switch flipped while Homey was down is reverted to the group's saved state.
-- Switch Master groups are not affected.
-
----
-
 ## Desync Log
 
 The app records all desync events in a global log, accessible via **Configure** on the app page.
@@ -156,7 +137,10 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 - Echo suppression prevents feedback loops (a device confirming its own command)
 - Rapid duplicate callbacks from the same device are debounced before propagating
 - Devices that are offline when a command is sent are queued and synced when they reconnect
-- On startup, all devices in the group are automatically aligned to the same state (see [Boot Sync Policy](#boot-sync-policy))
+- On startup, devices that differ from the group's saved ON/OFF state are set to it. A group with no saved state yet (just created) takes its devices' state instead
+- A health-check re-subscription only re-attaches listeners: it never changes a device or the group. **Repair** aligns the devices to the group's saved state
+- Writes to the devices go out together, so a device that times out does not delay the others (the Primary is always first)
+- Switch Master: quick repeated toggles are applied one after another, and a slave that was unavailable when the master changed gets the missed command when it is back (within 1 hour)
 - A health check runs every 10 minutes, and immediately after a failed sync, to detect accumulated drift
 
 ---

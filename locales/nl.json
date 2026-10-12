@@ -15,7 +15,8 @@
     "primary_short": "Pri",
     "primary_hint": "Optioneel: selecteer het apparaat dat direct met het licht of stopcontact is verbonden. Dit wordt als eerste bediend.",
     "primary_selected": "Hoofd geselecteerd",
-    "no_primary": "Geen hoofd geselecteerd"
+    "no_primary": "Geen hoofd geselecteerd",
+    "err_max10": "Selecteer niet meer dan 10 apparaten."
   },
   "pair": {
     "title": "Schakelaargroep aanmaken",
@@ -31,7 +32,6 @@
     "btn_save": "Wijzigingen opslaan",
     "err_save": "Fout bij opslaan van de groep.",
     "err_load": "Fout bij laden van de configuratie.",
-    "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Reparatie op die groep om deze te bewerken, of verwijder deze eerst.",
     "err_min2": "Selecteer minimaal 2 apparaten.",
     "selected_label": "Huidig geselecteerd",
     "not_found": "niet meer gevonden"
@@ -50,8 +50,7 @@
     "save": "Opslaan",
     "saved": "Opgeslagen ✓",
     "err_save": "Fout bij opslaan van instellingen.",
-    "err_suppress_range": "Onderdrukkingsvenster moet 500–10000 ms zijn.",
-    "err_primary_not_selected": "Het hoofdapparaat moet een van de geselecteerde apparaten zijn."
+    "err_suppress_range": "Onderdrukkingsvenster moet 500–10000 ms zijn."
   },
   "error": {
     "missing_devices": "gekoppeld(e) apparaat/apparaten niet meer gevonden. Herstel deze groep.",
@@ -63,14 +62,8 @@
     "clear": "Log wissen",
     "loading": "Laden...",
     "empty": "Geen desynchroon-gebeurtenissen geregistreerd.",
-    "expected": "Verwacht",
-    "actual": "Werkelijk",
     "show_status_label": "Toon subapparaatstatus op Linked Switch-kaarten:",
-    "show_master_status_label": "Toon subapparaatstatus op Switch Master-kaarten:",
-    "boot_sync_label": "Opstartsynchronisatie (Linked Switch):",
-    "boot_sync_keep_virtual": "Groepsstatus behouden",
-    "boot_sync_any_on_wins": "Elke ON wint",
-    "boot_sync_hint": "Bij een herstart van Homey zet \"Groepsstatus behouden\" de laatste AAN/UIT-status van de groep terug op de apparaten. \"Elke ON wint\" zet de groep AAN als een apparaat AAN staat."
+    "show_master_status_label": "Toon subapparaatstatus op Switch Master-kaarten:"
   },
   "sync": {
     "virtual_switch": "Virtuele schakelaar",
@@ -93,18 +86,12 @@
     "master_missing": "Master-apparaat ontbreekt — groep moet worden gerepareerd"
   },
   "master_wizard": {
-    "master_name": "Naam virtueel apparaat",
-    "devices_to_control": "Schakelaars om te bedienen",
-    "hint_2_9": "Selecteer 2 tot 9 schakelaars met ON/OFF-mogelijkheid.",
     "err_min2": "Selecteer ten minste 2 schakelaars.",
     "err_max9": "Selecteer niet meer dan 9 schakelaars.",
     "err_device_conflict": "Een of meer apparaten worden al gebruikt door: \"{names}\". Gebruik Repareren op die groep om deze te bewerken, of verwijder deze eerst.",
     "virtual_name": "Naam virtueel apparaat",
     "master_device": "Hoofdschakelaar",
-    "master_placeholder": "Selecteer een hoofdschakelaar",
     "master_hint": "Optioneel. Kies de fysieke schakelaar die direct met het licht of stopcontact is verbonden om deze als eerste te bedienen. Laat leeg als alle schakelaars indirect zijn (bijv. Hue-lampen via wandschakelaars).",
-    "selected_master": "Geselecteerde hoofdschakelaar",
-    "change_master": "Hoofdschakelaar wijzigen",
     "slave_devices": "Geregelde schakelaars",
     "slave_hint": "Kies 2 tot 9 schakelaars om te bedienen.",
     "master": "Hoofd",
@@ -113,7 +100,6 @@
     "slave_short": "Ctl",
     "master_selected": "Hoofdschakelaar geselecteerd",
     "no_master": "Geen hoofdschakelaar geselecteerd",
-    "hint_master_slaves": "Kies één fysieke hoofdschakelaar en 2 tot 9 geregelde schakelaars.",
     "err_master_required": "Kies één hoofdschakelaar."
   },
   "master_pair": {
