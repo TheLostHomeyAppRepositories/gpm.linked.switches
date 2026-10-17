@@ -88,10 +88,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
     this._listeners.clear();
     const prevNames = new Map(this._deviceNames);
     this._deviceNames.clear();
-    this._pendingOffline.clear();
     this._expectedStates.clear();
-    this._notifiedDesyncs.clear();
-    this._activeDesyncs.clear();
     this._lastPropagatedValue = null;
     this._pendingReportContext = null;
 
@@ -393,8 +390,6 @@ class SwitchSyncDevice extends LinkedGroupDevice {
   // ─── Auto-heal: retry desynced devices directly (no _propagate) ─────────
 
   async _autoHeal(desynced) {
-    if (!this.getSetting('auto_heal')) return;
-
     const now        = Date.now();
     const suppressMs = this._suppressMs();
     const COOLDOWN   = 20000;
@@ -779,10 +774,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
         note:      this.homey.__('sync.resubscribe_attempted'),
       });
       await this.reloadConfiguration();
-      return;
-    }
-
-    if (newDesyncs.length > 0) {
+    } else if (newDesyncs.length > 0) {
       this.error(`[${this.getName()}] Health check: ${newDesyncs.length} new desync(s) — ${newDesyncs.map(d => `${d.name}(${d.actual ? 'ON' : 'OFF'})`).join(', ')}`);
       this._addSyncReport({
         value:     virtualValue,
@@ -791,7 +783,7 @@ class SwitchSyncDevice extends LinkedGroupDevice {
       });
     }
 
-    // Notification + auto-heal run on the full desync set — they self-dedup (notify history / 20s cooldown)
+    // Notification + heal run on the full desync set — they self-dedup (notify history / 20s cooldown)
     await this._notifyDesynced(desynced);
     await this._autoHeal(desynced);
   }

@@ -64,7 +64,7 @@ function makeDevice({ settings } = {}) {
 
 // A Linked Switch group over fake devices. `state` holds each device's current onoff value
 // (mutate it to simulate a device changing); `writes` records every write sent to a device.
-async function makeSyncGroup({ virtual = null, state, store = {}, missing = [] }) {
+async function makeSyncGroup({ virtual = null, state, store = {}, missing = [], failWrites = [] }) {
   const SwitchSyncDevice = require('../drivers/switch-sync/device');
   const writes = [];
   const storeData = { deviceIds: Object.keys(state), ...store };
@@ -77,7 +77,10 @@ async function makeSyncGroup({ virtual = null, state, store = {}, missing = [] }
     name: id,
     available: true,
     makeCapabilityInstance: () => ({ get value() { return state[id]; }, destroy() {} }),
-    setCapabilityValue: async ({ value }) => { writes.push([id, value]); },
+    setCapabilityValue: async ({ value }) => {
+      if (failWrites.includes(id)) throw new Error('This device is currently unavailable.');
+      writes.push([id, value]);
+    },
     };
   } } };
 
@@ -87,7 +90,7 @@ async function makeSyncGroup({ virtual = null, state, store = {}, missing = [] }
     homey: {
       ...base.homey,
       settings: { get: () => undefined },
-      flow: { getDeviceTriggerCard: () => ({}) },
+      flow: { getDeviceTriggerCard: () => ({ trigger: async () => {} }) },
       app: { ...base.homey.app, getHomeyAPI: async () => api, _isSettingEnabled: (v, d) => (v == null ? d : Boolean(v)) },
     },
     getStoreValue: key => storeData[key],

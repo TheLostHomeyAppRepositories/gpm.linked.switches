@@ -93,14 +93,11 @@ Each group has its own settings, accessible by tapping the device and going to *
 |---|---|---|
 | **Linked Devices** | List of devices currently in this group | — |
 | **Echo Suppress Window** | How long (ms) to ignore echoes after sending a command. Prevents feedback loops. | 2000 ms |
-| **Auto-Heal Desynced Devices** | Automatically retry setting a desynced device to the expected state (20 s cooldown per device) | Off |
 | **Notify on Desync** | Send a push notification if a device fails to reach the expected state | On |
 
-### When to enable Auto-Heal
+### Healing
 
-Auto-Heal is **off by default** because retrying a device that keeps failing can mask a real problem (weak signal, dead device) instead of surfacing it.
-
-Turn it on when you have a device that drops commands intermittently but is otherwise healthy — for example a Zigbee/Tuya switch that occasionally times out. Auto-Heal will re-send the expected state (max once every 20 s per device) until it sticks. Leave it **off** while diagnosing a new or unreliable device, so the Desync Log shows the failures clearly.
+When a device is out of step with its group (a command it missed, or it came back from being offline), the app writes the group's state to it again. This runs after a failed sync and on every health check (10 minutes), at most once every 20 s per device. The failure is always logged in the Desync Log (and notified, if enabled) first.
 
 ---
 
@@ -147,7 +144,7 @@ Use **Copy to Clipboard** to share the log for troubleshooting, or **Clear Log**
 
 ## Flow cards
 
-The Flow cards below are **deprecated**: they no longer appear when creating new Flows, but Flows that already use them keep working. Sync recovery is automatic (startup and re-subscribe alignment, health check every 10 minutes, optional Auto-Heal), and failures are shown in the Desync Log and, if enabled, as a push notification.
+The Flow cards below are **deprecated**: they no longer appear when creating new Flows, but Flows that already use them keep working. Sync recovery is automatic (startup alignment, a health check every 10 minutes that writes the group's state to a device that is out of step), and failures are shown in the Desync Log and, if enabled, as a push notification.
 
 - **Trigger — "A device failed to sync"** — fires when a device fails to reach the expected state. Tokens: device name, expected state, actual state.
 - **Condition — "Group is fully synced"** — true when every device matches the group state (no pending failures or offline devices).

@@ -46,5 +46,8 @@
   },
   "1.1.6": {
     "en": "Sync reliability. Switch Master: quick repeated toggles are now applied one after another instead of leaving switches in mixed states, and a switch that was unavailable when the master changed gets the missed command when it is back (within an hour). A device that does not answer no longer delays the other devices of its group. Changing a group's Primary device in Repair now takes effect immediately. Linked Switch groups are limited to 10 devices, as documented. The app shares one connection to Homey instead of opening one per group. Removed the Boot Sync Policy setting added in 1.1.5: when the app starts, a Linked Switch group now always sets the devices that differ from it to its saved ON/OFF state (a new group takes its devices' state)."
+  },
+  "1.1.7": {
+    "en": "Sync reliability. The health check now brings a device that came back out of step (for example after losing its connection) back to its group's ON/OFF state, so you no longer have to press the switch twice. Healing is always on now, so the Auto-Heal setting is removed; every failure is still logged first, and notified if enabled. A device that stays out of step no longer triggers a re-subscription and a new log entry every 10 minutes, and a command waiting for an offline device is no longer lost when the app re-subscribes."
   }
 }
